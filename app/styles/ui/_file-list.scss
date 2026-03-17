@@ -49,5 +49,16 @@
       background-color: inherit;
       color: var(--text-color);
     }
+
+    &.filter-matched {
+      font-weight: 600;
+    }
+
+    .filter-match-indicator {
+      flex-shrink: 0;
+      margin-left: 4px;
+      color: var(--tab-bar-active-color);
+      font-size: 12px;
+    }
   }
 }

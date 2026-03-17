@@ -1,4 +1,5 @@
 import * as React from 'react'
+import classNames from 'classnames'
 import debounce from 'lodash/debounce'
 import {
   TreeList,
@@ -21,6 +22,7 @@ interface IFileExplorerProps {
   readonly fileTree: ReadonlyArray<IFileTreeNode>
   readonly expandedPaths: ReadonlySet<string>
   readonly selectedPath: string | null
+  readonly currentBranchName: string | null
   readonly workingDirectoryChangedPaths: ReadonlySet<string>
   readonly isLoadingFileTree: boolean
   readonly onOpenInExternalEditor?: (fullPath: string) => void
@@ -58,6 +60,14 @@ export class FileExplorer extends React.Component<
   private onClearFilter = () => {
     this.setState({ filterText: '', debouncedFilterText: '' })
     this.applyFilter.cancel()
+  }
+
+  private onRootClick = () => {
+    this.props.dispatcher.selectExplorerPath(
+      this.props.repository,
+      null,
+      null
+    )
   }
 
   private onRowClick = (row: IFlattenedTreeRow) => {
@@ -133,6 +143,17 @@ export class FileExplorer extends React.Component<
 
     return (
       <div id="file-explorer">
+        <div
+          className={classNames('explorer-root-node', {
+            selected: this.props.selectedPath === null,
+          })}
+          onClick={this.onRootClick}
+        >
+          <span className="root-icon">🔀</span>
+          <span className="root-label">
+            {this.props.currentBranchName ?? 'HEAD'}
+          </span>
+        </div>
         <div className="explorer-search">
           <input
             type="text"

@@ -462,6 +462,16 @@ export class RepositoryView extends React.Component<
     this.props.dispatcher.changeImageDiffType(imageDiffType)
   }
 
+  private getCurrentBranchName(): string | null {
+    const tip = this.props.state.branchesState.tip
+    if (tip.kind === TipState.Valid) {
+      return tip.branch.name
+    } else if (tip.kind === TipState.Unborn) {
+      return tip.ref
+    }
+    return null
+  }
+
   private handleExplorerWidthReset = () => {
     this.props.dispatcher.resetExplorerWidth()
   }
@@ -488,6 +498,7 @@ export class RepositoryView extends React.Component<
           fileTree={explorerState.fileTree}
           expandedPaths={explorerState.expandedPaths}
           selectedPath={explorerState.selectedPath}
+          currentBranchName={this.getCurrentBranchName()}
           workingDirectoryChangedPaths={explorerState.workingDirectoryChangedPaths}
           isLoadingFileTree={explorerState.loadingForBranchSha !== null}
           onOpenInExternalEditor={this.props.onOpenInExternalEditor}
@@ -519,8 +530,12 @@ export class RepositoryView extends React.Component<
   private renderChangesPane(): JSX.Element | null {
     return (
       <div id="changes-pane">
-        {this.renderChangesSidebar()}
-        {this.renderContentForChanges()}
+        <div className="changes-top">
+          {this.renderChangesSidebar()}
+        </div>
+        <div className="changes-bottom">
+          {this.renderContentForChanges()}
+        </div>
       </div>
     )
   }

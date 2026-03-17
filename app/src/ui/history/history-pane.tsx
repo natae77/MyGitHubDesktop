@@ -9,10 +9,8 @@ import { IChangesetData } from '../../lib/git'
 import { CommitList } from './commit-list'
 import { FileList } from './file-list'
 import { SeamlessDiffSwitcher } from '../diff/seamless-diff-switcher'
-import { Resizable } from '../resizable'
 import { Account } from '../../models/account'
 import { Emoji } from '../../lib/emoji'
-import { clamp } from '../../lib/clamp'
 import { isRepositoryWithGitHubRepository } from '../../models/repository'
 import { GitHubRepository } from '../../models/github-repository'
 import { openFile } from '../lib/open-file'
@@ -186,19 +184,6 @@ export class HistoryPane extends React.Component<IHistoryPaneProps> {
 
     return (
       <div id="history-pane">
-        {explorerState.selectedPath !== null && (
-          <div className="history-pane-filter-info">
-            <span className="filter-path">
-              Showing history for: <strong>{explorerState.selectedPath}</strong>
-            </span>
-            <button
-              className="clear-filter-button"
-              onClick={this.onClearFilter}
-            >
-              Clear filter
-            </button>
-          </div>
-        )}
         <div className="history-top">
           <div className="history-commit-list">
             <CommitList
@@ -223,28 +208,33 @@ export class HistoryPane extends React.Component<IHistoryPaneProps> {
               accounts={this.props.accounts}
             />
           </div>
-          {selectedCommits.length > 0 && this.renderCommitDetails(selectedCommits)}
+          {selectedCommits.length > 0 && (
+            <div className="history-file-list">
+              <FileList
+                files={this.props.changesetData.files}
+                onSelectedFileChanged={file =>
+                  this.props.dispatcher.changeFileSelection(
+                    this.props.repository,
+                    file
+                  )
+                }
+                onRowDoubleClick={this.onFileDoubleClick}
+                selectedFile={this.props.selectedFile}
+                availableWidth={300}
+                explorerSelectedPath={explorerState.selectedPath}
+              />
+            </div>
+          )}
         </div>
+        {this.renderDiffViewer()}
       </div>
     )
   }
 
-  private onClearFilter = () => {
-    this.props.dispatcher.selectExplorerPath(
-      this.props.repository,
-      null,
-      null
-    )
-  }
-
-  private renderCommitDetails(
-    selectedCommits: ReadonlyArray<Commit>
-  ): JSX.Element {
+  private renderDiffViewer(): JSX.Element | null {
     const {
-      changesetData,
-      selectedFile,
       currentDiff,
-      commitSummaryWidth,
+      selectedFile,
       repository,
       dispatcher,
       imageDiffType,
@@ -252,52 +242,32 @@ export class HistoryPane extends React.Component<IHistoryPaneProps> {
       showSideBySideDiff,
     } = this.props
 
+    if (currentDiff === null || selectedFile === null) {
+      return null
+    }
+
     return (
-      <div className="history-detail">
-        <Resizable
-          width={clamp(commitSummaryWidth)}
-          minimumWidth={commitSummaryWidth.min}
-          maximumWidth={commitSummaryWidth.max}
-          onResize={width =>
-            dispatcher.setCommitSummaryWidth(width)
+      <div className="history-bottom">
+        <SeamlessDiffSwitcher
+          repository={repository}
+          readOnly={true}
+          imageDiffType={imageDiffType}
+          file={selectedFile}
+          diff={currentDiff}
+          hideWhitespaceInDiff={hideWhitespaceInDiff}
+          showSideBySideDiff={showSideBySideDiff}
+          showDiffCheckMarks={false}
+          onOpenBinaryFile={this.onOpenBinaryFile}
+          onOpenSubmodule={this.onOpenSubmodule}
+          onChangeImageDiffType={this.onChangeImageDiffType}
+          onHideWhitespaceInDiffChanged={hideWhitespace =>
+            dispatcher.onHideWhitespaceInHistoryDiffChanged(
+              hideWhitespace,
+              repository,
+              selectedFile
+            )
           }
-          onReset={() => dispatcher.resetCommitSummaryWidth()}
-          description="Commit summary"
-        >
-          <div className="history-file-list">
-            <FileList
-              files={changesetData.files}
-              onSelectedFileChanged={file =>
-                dispatcher.changeFileSelection(repository, file)
-              }
-              onRowDoubleClick={this.onFileDoubleClick}
-              selectedFile={selectedFile}
-              availableWidth={clamp(commitSummaryWidth)}
-            />
-          </div>
-        </Resizable>
-        {currentDiff !== null && selectedFile !== null && (
-          <SeamlessDiffSwitcher
-            repository={repository}
-            readOnly={true}
-            imageDiffType={imageDiffType}
-            file={selectedFile}
-            diff={currentDiff}
-            hideWhitespaceInDiff={hideWhitespaceInDiff}
-            showSideBySideDiff={showSideBySideDiff}
-            showDiffCheckMarks={false}
-            onOpenBinaryFile={this.onOpenBinaryFile}
-            onOpenSubmodule={this.onOpenSubmodule}
-            onChangeImageDiffType={this.onChangeImageDiffType}
-            onHideWhitespaceInDiffChanged={hideWhitespace =>
-              dispatcher.onHideWhitespaceInHistoryDiffChanged(
-                hideWhitespace,
-                repository,
-                selectedFile
-              )
-            }
-          />
-        )}
+        />
       </div>
     )
   }

@@ -37,12 +37,47 @@
       flex-shrink: 0;
     }
 
-    // Changes pane - shows sidebar + diff side by side
+    // Changes pane - top (file list + commit area) + bottom (diff)
     #changes-pane {
       flex: 1;
       display: flex;
-      flex-direction: row;
+      flex-direction: column;
       min-height: 0;
+
+      .changes-top {
+        flex: 1;
+        min-height: 200px;
+        overflow: hidden;
+
+        // ChangesSidebar's .panel wrapper — uses grid to split
+        // file list (left) and commit area (right)
+        > .panel {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          height: 100%;
+          min-height: 0;
+          overflow: hidden;
+
+          > .changes-list-container {
+            grid-column: 1;
+            grid-row: 1 / 99;
+            overflow-y: auto;
+            border-right: 1px solid var(--box-border-color);
+            min-height: 0;
+          }
+
+          > *:not(.changes-list-container) {
+            grid-column: 2;
+          }
+        }
+      }
+
+      .changes-bottom {
+        flex: 1;
+        min-height: 0;
+        overflow: hidden;
+        border-top: 1px solid var(--box-border-color);
+      }
     }
   }
 

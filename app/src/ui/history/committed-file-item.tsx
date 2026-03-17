@@ -1,4 +1,5 @@
 import * as React from 'react'
+import classNames from 'classnames'
 
 import { CommittedFileChange } from '../../models/status'
 import { mapStatus } from '../../lib/status'
@@ -11,25 +12,28 @@ interface ICommittedFileItemProps {
   readonly availableWidth: number
   readonly file: CommittedFileChange
   readonly focused: boolean
+  readonly isFilterMatched?: boolean
 }
 
 export class CommittedFileItem extends React.Component<ICommittedFileItemProps> {
   public render() {
-    const { file, focused } = this.props
+    const { file, focused, isFilterMatched } = this.props
     const { status } = file
     const fileStatus = mapStatus(status)
 
     const listItemPadding = 10 * 2
     const statusWidth = 16
+    const filterMatchWidth = isFilterMatched ? 20 : 0
     const filePathPadding = 5
     const availablePathWidth =
       this.props.availableWidth -
       listItemPadding -
       filePathPadding -
-      statusWidth
+      statusWidth -
+      filterMatchWidth
 
     return (
-      <div className="file">
+      <div className={classNames('file', { 'filter-matched': isFilterMatched })}>
         <PathLabel
           path={file.path}
           status={file.status}
@@ -47,6 +51,11 @@ export class CommittedFileItem extends React.Component<ICommittedFileItemProps> 
             className={'status status-' + fileStatus.toLowerCase()}
           />
         </TooltippedContent>
+        {isFilterMatched && (
+          <span className="filter-match-indicator" aria-label="Matches filter">
+            ★
+          </span>
+        )}
       </div>
     )
   }

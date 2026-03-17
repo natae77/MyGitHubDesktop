@@ -11,6 +11,7 @@ interface IFileListProps {
   readonly onSelectedFileChanged: (file: CommittedFileChange) => void
   readonly onRowDoubleClick: (row: number, source: ClickSource) => void
   readonly availableWidth: number
+  readonly explorerSelectedPath?: string | null
   readonly onContextMenu?: (
     file: CommittedFileChange,
     event: React.MouseEvent<HTMLDivElement>
@@ -39,11 +40,17 @@ export class FileList extends React.Component<IFileListProps, IFileListState> {
   }
 
   private renderFile = (row: number) => {
+    const file = this.props.files[row]
+    const { explorerSelectedPath } = this.props
+    const isInFilterPath =
+      explorerSelectedPath != null && file.path.startsWith(explorerSelectedPath)
+
     return (
       <CommittedFileItem
-        file={this.props.files[row]}
+        file={file}
         availableWidth={this.props.availableWidth}
         focused={this.state.focusedRow === row}
+        isFilterMatched={isInFilterPath}
       />
     )
   }
