@@ -3,12 +3,12 @@ import * as Path from 'path'
 
 import { TransitionGroup, CSSTransition } from 'react-transition-group'
 import {
-  IAppState,
-  RepositorySectionTab,
-  FoldoutType,
-  SelectionType,
-  HistoryTabMode,
-  CommitOptions,
+    IAppState,
+    RepositorySectionTab,
+    FoldoutType,
+    SelectionType,
+    HistoryTabMode,
+    CommitOptions,
 } from '../lib/app-state'
 import { Dispatcher } from './dispatcher'
 import { AppStore, GitHubUserStore, IssuesStore } from '../lib/stores'
@@ -21,17 +21,17 @@ import { shouldRenderApplicationMenu } from './lib/features'
 import { matchExistingRepository } from '../lib/repository-matching'
 import { getVersion, getName } from './lib/app-proxy'
 import {
-  getOS,
-  isOSNoLongerSupportedByElectron,
-  isMacOSAndNoLongerSupportedByElectron,
-  isWindowsAndNoLongerSupportedByElectron,
+    getOS,
+    isOSNoLongerSupportedByElectron,
+    isMacOSAndNoLongerSupportedByElectron,
+    isWindowsAndNoLongerSupportedByElectron,
 } from '../lib/get-os'
 import { MenuEvent, isTestMenuEvent } from '../main-process/menu'
 import {
-  Repository,
-  getGitHubHtmlUrl,
-  getNonForkGitHubRepository,
-  isRepositoryWithGitHubRepository,
+    Repository,
+    getGitHubHtmlUrl,
+    getNonForkGitHubRepository,
+    isRepositoryWithGitHubRepository,
 } from '../models/repository'
 import { Branch } from '../models/branch'
 import { PreferencesTab } from '../models/preferences'
@@ -49,22 +49,22 @@ import { RenameBranch } from './rename-branch'
 import { DeleteBranch, DeleteRemoteBranch } from './delete-branch'
 import { CloningRepositoryView } from './cloning-repository'
 import {
-  Toolbar,
-  ToolbarDropdown,
-  DropdownState,
-  PushPullButton,
-  BranchDropdown,
-  RevertProgress,
+    Toolbar,
+    ToolbarDropdown,
+    DropdownState,
+    PushPullButton,
+    BranchDropdown,
+    RevertProgress,
 } from './toolbar'
 import { iconForRepository, OcticonSymbol } from './octicons'
 import * as octicons from './octicons/octicons.generated'
 import {
-  showCertificateTrustDialog,
-  sendReady,
-  isInApplicationFolder,
-  selectAllWindowContents,
-  installWindowsCLI,
-  uninstallWindowsCLI,
+    showCertificateTrustDialog,
+    sendReady,
+    isInApplicationFolder,
+    selectAllWindowContents,
+    installWindowsCLI,
+    uninstallWindowsCLI,
 } from './main-process-proxy'
 import { DiscardChanges } from './discard-changes'
 import { Welcome } from './welcome'
@@ -117,8 +117,8 @@ import { SAMLReauthRequiredDialog } from './saml-reauth-required/saml-reauth-req
 import { CreateForkDialog } from './forks/create-fork-dialog'
 import { findContributionTargetDefaultBranch } from '../lib/branch'
 import {
-  GitHubRepository,
-  hasWritePermission,
+    GitHubRepository,
+    hasWritePermission,
 } from '../models/github-repository'
 import { CreateTag } from './create-tag'
 import { DeleteTag } from './delete-tag'
@@ -128,8 +128,8 @@ import { LocalChangesOverwrittenDialog } from './local-changes-overwritten/local
 import memoizeOne from 'memoize-one'
 import { AheadBehindStore } from '../lib/stores/ahead-behind-store'
 import {
-  getAccountForCommitMessageGeneration,
-  getAccountForRepository,
+    getAccountForCommitMessageGeneration,
+    getAccountForRepository,
 } from '../lib/get-account-for-repository'
 import { CommitOneLine } from '../models/commit'
 import { CommitDragElement } from './drag-elements/commit-drag-element'
@@ -138,9 +138,9 @@ import { MoveToApplicationsFolder } from './move-to-applications-folder'
 import { ChangeRepositoryAlias } from './change-repository-alias/change-repository-alias-dialog'
 import { ThankYou } from './thank-you'
 import {
-  getUserContributions,
-  hasUserAlreadyBeenCheckedOrThanked,
-  updateLastThankYou,
+    getUserContributions,
+    hasUserAlreadyBeenCheckedOrThanked,
+    updateLastThankYou,
 } from '../lib/thank-you'
 import { ReleaseNote } from '../models/release-notes'
 import { CommitMessageDialog } from './commit-message/commit-message-dialog'
@@ -189,16 +189,16 @@ import { ConfirmCommitFilteredChanges } from './changes/confirm-commit-filtered-
 import { AboutTestDialog } from './about/about-test-dialog'
 import { enableCopilotSdkCommitMessageGeneration } from '../lib/feature-flag'
 import {
-  ISecretScanResult,
-  PushProtectionErrorDialog,
+    ISecretScanResult,
+    PushProtectionErrorDialog,
 } from './secret-scanning/push-protection-error-dialog'
 import { GenerateCommitMessageOverrideWarning } from './generate-commit-message/generate-commit-message-override-warning'
 import { GenerateCommitMessageDisclaimer } from './generate-commit-message/generate-commit-message-disclaimer'
 import { IAPICreatePushProtectionBypassResponse } from '../lib/api'
 import {
-  BypassPushProtectionDialog,
-  BypassReason,
-  BypassReasonType,
+    BypassPushProtectionDialog,
+    BypassReason,
+    BypassReasonType,
 } from './secret-scanning/bypass-push-protection-dialog'
 import { HookFailed } from './hook-failed/hook-failed'
 import { CommitProgress } from './commit-progress/commit-progress'
@@ -882,10 +882,6 @@ export class App extends React.Component<IAppProps, IAppState> {
       filterText: '',
       showBranchList,
     })
-
-    if (shouldFocusHistory) {
-      this.repositoryViewRef.current?.setFocusHistoryNeeded()
-    }
   }
 
   private async showChanges(shouldFocusChanges: boolean) {
@@ -2791,10 +2787,7 @@ export class App extends React.Component<IAppProps, IAppState> {
   }
 
   private onBranchCreatedFromCommit = () => {
-    const repositoryView = this.repositoryViewRef.current
-    if (repositoryView !== null) {
-      repositoryView.scrollCompareListToTop()
-    }
+    // scrollCompareListToTop was removed with CompareSidebar refactoring
   }
 
   private onOpenShellIgnoreWarning = (path: string) => {

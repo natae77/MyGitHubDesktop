@@ -7,22 +7,21 @@ import { Changes, ChangesSidebar } from './changes'
 import { NoChanges } from './changes/no-changes'
 import { MultipleSelection } from './changes/multiple-selection'
 import { FilesChangedBadge } from './changes/files-changed-badge'
-import { CompareSidebar, HistoryPane } from './history'
+import { HistoryPane } from './history'
 import { FileExplorer } from './explorer'
 import { Resizable } from './resizable'
 import { TabBar } from './tab-bar'
 import {
-  IRepositoryState,
-  RepositorySectionTab,
-  ChangesSelectionKind,
-  IConstrainedValue,
-  CommitOptions,
+    IRepositoryState,
+    RepositorySectionTab,
+    ChangesSelectionKind,
+    IConstrainedValue,
+    CommitOptions,
 } from '../lib/app-state'
 import { Dispatcher } from './dispatcher'
 import { IssuesStore, GitHubUserStore } from '../lib/stores'
 import { assertNever } from '../lib/fatal-error'
 import { Account } from '../models/account'
-import { FocusContainer } from './lib/focus-container'
 import { ImageDiffType } from '../models/diff'
 import { IMenu } from '../models/app-menu'
 import { StashDiffViewer } from './stashing'
@@ -165,14 +164,8 @@ export class RepositoryView extends React.Component<
   private previousSection: RepositorySectionTab =
     this.props.state.selectedSection
 
-  // Flag to force the app to use the scroll position in the state the next time
-  // the Compare list is rendered.
-  private forceCompareListScrollTop: boolean = false
-
   private readonly changesSidebarRef = React.createRef<ChangesSidebar>()
-  private readonly compareSidebarRef = React.createRef<CompareSidebar>()
 
-  private focusHistoryNeeded: boolean = false
   private focusChangesNeeded: boolean = false
 
   public constructor(props: IRepositoryViewProps) {
@@ -184,28 +177,12 @@ export class RepositoryView extends React.Component<
     }
   }
 
-  public setFocusHistoryNeeded(): void {
-    this.focusHistoryNeeded = true
-  }
-
   public setFocusChangesNeeded(): void {
     this.focusChangesNeeded = true
   }
 
-  public scrollCompareListToTop(): void {
-    this.forceCompareListScrollTop = true
-
-    this.setState({
-      compareListScrollTop: 0,
-    })
-  }
-
   private onChangesListScrolled = (scrollTop: number) => {
     this.setState({ changesListScrollTop: scrollTop })
-  }
-
-  private onCompareListScrolled = (scrollTop: number) => {
-    this.setState({ compareListScrollTop: scrollTop })
   }
 
   private renderChangesBadge(): JSX.Element | null {
@@ -332,111 +309,6 @@ export class RepositoryView extends React.Component<
         onUpdateCommitOptions={this.props.onUpdateCommitOptions}
       />
     )
-  }
-
-  private renderCompareSidebar(): JSX.Element {
-    const { repository, dispatcher, state, aheadBehindStore, emoji } =
-      this.props
-    const {
-      remote,
-      compareState,
-      branchesState,
-      commitSelection: { shas },
-      commitLookup,
-      localCommitSHAs,
-      localTags,
-      tagsToPush,
-      multiCommitOperationState: mcos,
-    } = state
-    const { tip } = branchesState
-    const currentBranch = tip.kind === TipState.Valid ? tip.branch : null
-    const scrollTop =
-      this.forceCompareListScrollTop ||
-      this.previousSection === RepositorySectionTab.Changes
-        ? this.state.compareListScrollTop
-        : undefined
-    this.previousSection = RepositorySectionTab.History
-    this.forceCompareListScrollTop = false
-
-    return (
-      <CompareSidebar
-        ref={this.compareSidebarRef}
-        repository={repository}
-        isLocalRepository={remote === null}
-        compareState={compareState}
-        selectedCommitShas={shas}
-        shasToHighlight={compareState.shasToHighlight}
-        currentBranch={currentBranch}
-        emoji={emoji}
-        commitLookup={commitLookup}
-        localCommitSHAs={localCommitSHAs}
-        localTags={localTags}
-        dispatcher={dispatcher}
-        onRevertCommit={this.onRevertCommit}
-        onAmendCommit={this.onAmendCommit}
-        onViewCommitOnGitHub={this.props.onViewCommitOnGitHub}
-        onCompareListScrolled={this.onCompareListScrolled}
-        onCherryPick={this.props.onCherryPick}
-        compareListScrollTop={scrollTop}
-        tagsToPush={tagsToPush}
-        aheadBehindStore={aheadBehindStore}
-        isMultiCommitOperationInProgress={mcos !== null}
-        askForConfirmationOnCheckoutCommit={
-          this.props.askForConfirmationOnCheckoutCommit
-        }
-        accounts={this.props.accounts}
-      />
-    )
-  }
-
-  private renderSidebarContents(): JSX.Element {
-    const selectedSection = this.props.state.selectedSection
-
-    if (selectedSection === RepositorySectionTab.Changes) {
-      return this.renderChangesSidebar()
-    } else if (selectedSection === RepositorySectionTab.History) {
-      return this.renderCompareSidebar()
-    } else {
-      return assertNever(selectedSection, 'Unknown repository section')
-    }
-  }
-
-  private handleSidebarWidthReset = () => {
-    this.props.dispatcher.resetSidebarWidth()
-  }
-
-  private handleSidebarResize = (width: number) => {
-    this.props.dispatcher.setSidebarWidth(width)
-  }
-
-  private renderSidebar(): JSX.Element {
-    return (
-      <FocusContainer onFocusWithinChanged={this.onSidebarFocusWithinChanged}>
-        <Resizable
-          id="repository-sidebar"
-          width={this.props.sidebarWidth.value}
-          maximumWidth={this.props.sidebarWidth.max}
-          minimumWidth={this.props.sidebarWidth.min}
-          onReset={this.handleSidebarWidthReset}
-          onResize={this.handleSidebarResize}
-          description="Repository sidebar"
-        >
-          {this.renderTabs()}
-          {this.renderSidebarContents()}
-        </Resizable>
-      </FocusContainer>
-    )
-  }
-
-  private onSidebarFocusWithinChanged = (sidebarHasFocusWithin: boolean) => {
-    if (
-      sidebarHasFocusWithin === false &&
-      this.props.state.selectedSection === RepositorySectionTab.History
-    ) {
-      this.props.dispatcher.updateCompareForm(this.props.repository, {
-        showBranchList: false,
-      })
-    }
   }
 
   private renderStashedChangesContent(): JSX.Element | null {
@@ -655,7 +527,7 @@ export class RepositoryView extends React.Component<
 
   private renderHistoryPane(): JSX.Element {
     const {
-      repository, dispatcher, emoji, state, aheadBehindStore,
+      repository, dispatcher, emoji, state,
     } = this.props
     const {
       commitSelection, commitLookup, compareState, localCommitSHAs,
@@ -732,11 +604,6 @@ export class RepositoryView extends React.Component<
     if (this.focusChangesNeeded) {
       this.focusChangesNeeded = false
       this.changesSidebarRef.current?.focus()
-    }
-
-    if (this.focusHistoryNeeded) {
-      this.focusHistoryNeeded = false
-      this.compareSidebarRef.current?.focusHistory()
     }
   }
 

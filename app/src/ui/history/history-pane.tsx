@@ -4,7 +4,7 @@ import { Commit, CommitOneLine } from '../../models/commit'
 import { CommittedFileChange } from '../../models/status'
 import { IDiff, ImageDiffType } from '../../models/diff'
 import { Dispatcher } from '../dispatcher'
-import { IExplorerState, IConstrainedValue, ICompareState, HistoryTabMode } from '../../lib/app-state'
+import { IExplorerState, IConstrainedValue, ICompareState } from '../../lib/app-state'
 import { IChangesetData } from '../../lib/git'
 import { CommitList } from './commit-list'
 import { FileList } from './file-list'
@@ -12,8 +12,6 @@ import { SeamlessDiffSwitcher } from '../diff/seamless-diff-switcher'
 import { Resizable } from '../resizable'
 import { Account } from '../../models/account'
 import { Emoji } from '../../lib/emoji'
-import { ExpandableCommitSummary } from './expandable-commit-summary'
-import { DiffHeader } from '../diff/diff-header'
 import { clamp } from '../../lib/clamp'
 import { isRepositoryWithGitHubRepository } from '../../models/repository'
 import { GitHubRepository } from '../../models/github-repository'
@@ -143,10 +141,6 @@ export class HistoryPane extends React.Component<IHistoryPaneProps> {
     // No-op for now; could open file in external editor
   }
 
-  private onDiffOptionsOpened = () => {
-    this.props.dispatcher.incrementMetric('diffOptionsViewedCount')
-  }
-
   private getSelectedCommits(): ReadonlyArray<Commit> {
     const commits: Commit[] = []
     for (const sha of this.props.selectedCommitSHAs) {
@@ -240,17 +234,9 @@ export class HistoryPane extends React.Component<IHistoryPaneProps> {
       commitSummaryWidth,
       repository,
       dispatcher,
-      emoji,
       imageDiffType,
       hideWhitespaceInDiff,
       showSideBySideDiff,
-      externalEditorLabel,
-      onOpenInExternalEditor,
-      onViewCommitOnGitHub,
-      shasInDiff,
-      isContiguous,
-      localCommitSHAs,
-      accounts,
     } = this.props
 
     return (
