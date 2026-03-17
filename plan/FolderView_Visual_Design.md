@@ -11,9 +11,9 @@
 ┌─────────────────────────────────────────────────────────────────┐
 │  [Repository ▼]  [Branch ▼]  [Fetch origin]                    │
 ├──────────────────┬──────────────────────────────────────────────┤
-│                  │                                              │
-│  Explorer        │  Main Pane                                   │
-│  (좌측 사이드바)  │  [Changes] [History] 탭                      │
+│                  │  [Changes][History]                          │
+│  Explorer        ├──────────────────────────────────────────────┤
+│  (좌측 사이드바)  │  Main Pane 콘텐츠                             │
 │                  │                                              │
 │                  │                                              │
 └──────────────────┴──────────────────────────────────────────────┘
@@ -23,6 +23,9 @@
 - Main Pane 내부는 탭에 따라 **상하 분할** (목록 영역 + Diff 영역)
 - **Diff는 항상 Main Pane 하단에 배치** (기존 우측 배치 → 하단으로 변경)
 - Diff는 Explorer 사이드바 영역을 **침범하지 않음**
+- **탭 버튼은 컴팩트 배치** — 균등 분할(flex: 1)이 아닌 auto 너비로 좌측 상단에 모아 배치
+  - 균등 분할 시 "Changes"가 좌측 패널 헤더, "History"가 우측 패널 헤더처럼 보이는 UX 혼란 방지
+  - 탭은 전체 콘텐츠를 전환하는 컨트롤임을 시각적으로 명확히 함
 
 ---
 
@@ -176,11 +179,13 @@ Explorer에서 🔀 master (root) 클릭
 | 원칙 | 설명 |
 |------|------|
 | Diff는 항상 하단 | Changes/History 모두 Diff Viewer가 Main Pane 하단에 위치 |
+| Diff 하단 항상 표시 | diff가 없을 때도 `.history-bottom` 영역은 항상 렌더링 (placeholder 표시) |
 | Explorer 독립성 | Diff가 Explorer 사이드바 영역을 침범하지 않음 |
 | Root = Clear Filter | Explorer 최상단 브랜치명 노드 선택 → 필터 해제 |
 | 배너 제거 | "Showing history for: ... [Clear filter]" 불필요 |
 | 상단 좌우 분할 | Changes: ChangeList + Commit 영역 / History: CommitList + FileList |
 | 상하 Resizable | 상단(목록) ↔ 하단(Diff) 경계를 드래그로 조절 가능 |
+| 탭 컴팩트 배치 | 탭 버튼은 균등 분할이 아닌 auto 너비로 좌측 상단에 모아 배치 |
 
 ---
 
