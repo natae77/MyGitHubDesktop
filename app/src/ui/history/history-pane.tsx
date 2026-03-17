@@ -16,6 +16,7 @@ import { clamp } from '../../lib/clamp'
 import { isRepositoryWithGitHubRepository } from '../../models/repository'
 import { GitHubRepository } from '../../models/github-repository'
 import { openFile } from '../lib/open-file'
+import { ThrottledScheduler } from '../lib/throttled-scheduler'
 
 interface IHistoryPaneProps {
   readonly repository: Repository
@@ -76,6 +77,12 @@ interface IHistoryPaneProps {
 }
 
 export class HistoryPane extends React.Component<IHistoryPaneProps> {
+  private readonly loadChangedFilesScheduler = new ThrottledScheduler(200)
+
+  public componentWillUnmount() {
+    this.loadChangedFilesScheduler.clear()
+  }
+
   private getCommitSHAs(): ReadonlyArray<string> {
     const { explorerState, compareState } = this.props
 
@@ -97,6 +104,12 @@ export class HistoryPane extends React.Component<IHistoryPaneProps> {
       commits.map(c => c.sha),
       isContiguous
     )
+
+    this.loadChangedFilesScheduler.queue(() => {
+      this.props.dispatcher.loadChangedFilesForCurrentSelection(
+        this.props.repository
+      )
+    })
   }
 
   private onScroll = (start: number, end: number) => {
