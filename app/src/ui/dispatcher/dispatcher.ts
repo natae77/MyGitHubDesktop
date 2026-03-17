@@ -1041,6 +1041,43 @@ export class Dispatcher {
     return this.appStore._resetSidebarWidth()
   }
 
+  /** Set the File Explorer sidebar width. */
+  public setExplorerWidth(width: number): Promise<void> {
+    return this.appStore._setExplorerWidth(width)
+  }
+
+  /** Reset the File Explorer sidebar width to default. */
+  public resetExplorerWidth(): Promise<void> {
+    return this.appStore._resetExplorerWidth()
+  }
+
+  /** Select a path in the File Explorer and trigger filtered commit loading. */
+  public selectExplorerPath(
+    repository: Repository,
+    path: string | null,
+    pathType: 'tree' | 'blob' | null
+  ): Promise<void> {
+    return this.appStore._selectExplorerPath(repository, path, pathType)
+  }
+
+  /** Toggle a folder in the File Explorer. */
+  public toggleExplorerFolder(
+    repository: Repository,
+    path: string
+  ): Promise<void> {
+    return this.appStore._toggleExplorerFolder(repository, path)
+  }
+
+  /** Load the file tree for the repository's HEAD. */
+  public loadRepositoryFileTree(repository: Repository): Promise<void> {
+    return this.appStore._loadRepositoryFileTree(repository)
+  }
+
+  /** Load the next batch of filtered commits for the explorer path. */
+  public loadNextFilteredCommitBatch(repository: Repository): Promise<void> {
+    return this.appStore._loadNextFilteredCommitBatch(repository)
+  }
+
   /**
    * Set the width of the commit summary column in the
    * history view to the given value.

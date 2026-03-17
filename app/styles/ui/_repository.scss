@@ -17,6 +17,36 @@
     gap: var(--spacing);
   }
 
+  // Explorer sidebar (left panel - file tree)
+  #explorer-sidebar {
+    display: flex;
+    flex-direction: column;
+    min-width: 150px;
+    max-width: 500px;
+    border-right: 1px solid var(--box-border-color);
+  }
+
+  // Main pane (right of explorer, contains tabs + content)
+  #main-pane {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+
+    .tab-bar {
+      flex-shrink: 0;
+    }
+
+    // Changes pane - shows sidebar + diff side by side
+    #changes-pane {
+      flex: 1;
+      display: flex;
+      flex-direction: row;
+      min-height: 0;
+    }
+  }
+
+  // Legacy sidebar styles (kept for ChangesSidebar within changes-pane)
   &-sidebar {
     display: flex;
     flex-direction: column;

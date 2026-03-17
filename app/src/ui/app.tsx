@@ -3452,6 +3452,7 @@ export class App extends React.Component<IAppProps, IAppState> {
           sidebarWidth={state.sidebarWidth}
           commitSummaryWidth={state.commitSummaryWidth}
           stashedFilesWidth={state.stashedFilesWidth}
+          explorerWidth={state.explorerWidth}
           issuesStore={this.props.issuesStore}
           gitHubUserStore={this.props.gitHubUserStore}
           onViewCommitOnGitHub={this.onViewCommitOnGitHub}

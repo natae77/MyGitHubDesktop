@@ -198,6 +198,7 @@ import {
   TerminalOutput,
   HookProgress,
 } from '../git'
+import { getTrackedFiles, buildFileTree } from '../git/ls-tree'
 import {
   installGlobalLFSFilters,
   installLFSHooks,
@@ -382,6 +383,9 @@ const stashedFilesWidthConfigKey: string = 'stashed-files-width'
 const defaultPullRequestFileListWidth: number = 250
 const pullRequestFileListConfigKey: string = 'pull-request-files-width'
 
+const defaultExplorerWidth: number = 250
+const explorerWidthConfigKey: string = 'explorer-width'
+
 const defaultBranchDropdownWidth: number = 230
 const branchDropdownWidthConfigKey: string = 'branch-dropdown-width'
 
@@ -528,6 +532,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
   private commitSummaryWidth = constrain(defaultCommitSummaryWidth)
   private stashedFilesWidth = constrain(defaultStashedFilesWidth)
   private pullRequestFileListWidth = constrain(defaultPullRequestFileListWidth)
+  private explorerWidth = constrain(defaultExplorerWidth)
   private branchDropdownWidth = constrain(defaultBranchDropdownWidth)
   private pushPullButtonWidth = constrain(defaultPushPullButtonWidth)
 
@@ -1071,6 +1076,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
       pushPullButtonWidth: this.pushPullButtonWidth,
       commitSummaryWidth: this.commitSummaryWidth,
       stashedFilesWidth: this.stashedFilesWidth,
+      explorerWidth: this.explorerWidth,
       pullRequestFilesListWidth: this.pullRequestFileListWidth,
       appMenuState: this.appMenu ? this.appMenu.openMenus : [],
       highlightAccessKeys: this.highlightAccessKeys,
@@ -2216,6 +2222,9 @@ export class AppStore extends TypedBaseStore<IAppState> {
     this.stashedFilesWidth = constrain(
       getNumber(stashedFilesWidthConfigKey, defaultStashedFilesWidth)
     )
+    this.explorerWidth = constrain(
+      getNumber(explorerWidthConfigKey, defaultExplorerWidth)
+    )
     this.pullRequestFileListWidth = constrain(
       getNumber(pullRequestFileListConfigKey, defaultPullRequestFileListWidth)
     )
@@ -2430,6 +2439,11 @@ export class AppStore extends TypedBaseStore<IAppState> {
     // 220 was determined as the minimum value since it is the smallest width
     // that will still fit the placeholder text in the branch selector textbox
     // of the history tab
+    // Explorer sidebar gets first priority for width allocation
+    const maxExplorerWidth = Math.min(500, available * 0.4)
+    this.explorerWidth = constrain(this.explorerWidth, 150, maxExplorerWidth)
+    available -= clamp(this.explorerWidth)
+
     const maxSidebarWidth =
       available - Math.max(toolbarButtonsMinWidth, tutorialMinWidth)
     this.sidebarWidth = constrain(this.sidebarWidth, 220, maxSidebarWidth)
@@ -2682,6 +2696,17 @@ export class AppStore extends TypedBaseStore<IAppState> {
     this.repositoryStateCache.updateChangesState(repository, state => ({
       conflictState: updateConflictState(state, status, this.statsStore),
     }))
+
+    // Update explorer working directory changed paths
+    const wdStatus = this.repositoryStateCache.get(repository).changesState.workingDirectory
+    const newChangedPaths = new Set(wdStatus.files.map(f => f.path))
+    const currentExplorer = this.repositoryStateCache.get(repository).explorerState
+    // Only update if the set contents actually changed (preserve reference for React perf)
+    if (!setsEqual(newChangedPaths, currentExplorer.workingDirectoryChangedPaths)) {
+      this.repositoryStateCache.updateExplorerState(repository, () => ({
+        workingDirectoryChangedPaths: newChangedPaths,
+      }))
+    }
 
     this.updateMultiCommitOperationConflictsIfFound(repository)
     await this.initializeMultiCommitOperationIfConflictsFound(
@@ -3663,6 +3688,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
       this._refreshAuthor(repository),
       this._refreshHasCommitHooks(repository),
       refreshSectionPromise,
+      this._loadRepositoryFileTree(repository),
     ])
 
     await gitStore.refreshTags()
@@ -5513,6 +5539,135 @@ export class AppStore extends TypedBaseStore<IAppState> {
     this.emitUpdate()
 
     return Promise.resolve()
+  }
+
+  public _setExplorerWidth(width: number): Promise<void> {
+    this.explorerWidth = { ...this.explorerWidth, value: width }
+    setNumber(explorerWidthConfigKey, width)
+    this.updateResizableConstraints()
+    this.emitUpdate()
+
+    return Promise.resolve()
+  }
+
+  public _resetExplorerWidth(): Promise<void> {
+    this.explorerWidth = { ...this.explorerWidth, value: defaultExplorerWidth }
+    localStorage.removeItem(explorerWidthConfigKey)
+    this.updateResizableConstraints()
+    this.emitUpdate()
+
+    return Promise.resolve()
+  }
+
+  public async _selectExplorerPath(
+    repository: Repository,
+    path: string | null,
+    pathType: 'tree' | 'blob' | null
+  ): Promise<void> {
+    this.repositoryStateCache.updateExplorerState(repository, () => ({
+      selectedPath: path,
+      selectedPathType: pathType,
+      filteredCommitSHAs: [],
+      isLoadingFilteredCommits: path !== null,
+    }))
+    this.emitUpdate()
+
+    if (path !== null) {
+      const gitStore = this.gitStoreCache.get(repository)
+      const shas = await gitStore.loadFilteredCommitBatch('HEAD', 0, path)
+
+      this.repositoryStateCache.updateExplorerState(repository, () => ({
+        filteredCommitSHAs: shas ?? [],
+        isLoadingFilteredCommits: false,
+      }))
+      this.emitUpdate()
+    }
+  }
+
+  public async _toggleExplorerFolder(
+    repository: Repository,
+    path: string
+  ): Promise<void> {
+    this.repositoryStateCache.updateExplorerState(repository, state => {
+      const expandedPaths = new Set(state.expandedPaths)
+      if (expandedPaths.has(path)) {
+        expandedPaths.delete(path)
+      } else {
+        expandedPaths.add(path)
+      }
+      return { expandedPaths }
+    })
+    this.emitUpdate()
+  }
+
+  public async _loadRepositoryFileTree(
+    repository: Repository
+  ): Promise<void> {
+    const gitStore = this.gitStoreCache.get(repository)
+    const tip = gitStore.tip
+    const headSha = tip.kind === TipState.Valid
+      ? tip.branch.tip.sha
+      : null
+
+    if (headSha === null) {
+      // unborn repo or detached HEAD without tip
+      this.repositoryStateCache.updateExplorerState(repository, () => ({
+        fileTree: [],
+        loadingForBranchSha: null,
+      }))
+      this.emitUpdate()
+      return
+    }
+
+    this.repositoryStateCache.updateExplorerState(repository, () => ({
+      loadingForBranchSha: headSha,
+    }))
+    this.emitUpdate()
+
+    const paths = await getTrackedFiles(repository)
+
+    // Check for stale response (branch switched during load)
+    const currentState = this.repositoryStateCache.get(repository)
+    if (currentState.explorerState.loadingForBranchSha !== headSha) {
+      return // stale, discard
+    }
+
+    const fileTree = buildFileTree(paths)
+    this.repositoryStateCache.updateExplorerState(repository, () => ({
+      fileTree,
+      loadingForBranchSha: null,
+    }))
+    this.emitUpdate()
+  }
+
+  public async _loadNextFilteredCommitBatch(
+    repository: Repository
+  ): Promise<void> {
+    const state = this.repositoryStateCache.get(repository)
+    const { selectedPath, filteredCommitSHAs, isLoadingFilteredCommits } =
+      state.explorerState
+
+    if (selectedPath === null || isLoadingFilteredCommits) {
+      return
+    }
+
+    this.repositoryStateCache.updateExplorerState(repository, () => ({
+      isLoadingFilteredCommits: true,
+    }))
+    this.emitUpdate()
+
+    const gitStore = this.gitStoreCache.get(repository)
+    const newShas = await gitStore.loadFilteredCommitBatch(
+      'HEAD',
+      filteredCommitSHAs.length,
+      selectedPath
+    )
+
+    this.repositoryStateCache.updateExplorerState(repository, state => ({
+      filteredCommitSHAs: state.filteredCommitSHAs.concat(newShas ?? []),
+      isLoadingFilteredCommits: false,
+    }))
+    this.emitUpdate()
   }
 
   public _setBranchDropdownWidth(width: number): Promise<void> {
@@ -8711,6 +8866,19 @@ function isLocalChangesOverwrittenError(error: Error): boolean {
     error instanceof GitError &&
     error.result.gitError === DugiteError.LocalChangesOverwritten
   )
+}
+
+/** Shallow comparison of two ReadonlySet<string> instances. */
+function setsEqual(a: ReadonlySet<string>, b: ReadonlySet<string>): boolean {
+  if (a.size !== b.size) {
+    return false
+  }
+  for (const item of a) {
+    if (!b.has(item)) {
+      return false
+    }
+  }
+  return true
 }
 
 function constrain(

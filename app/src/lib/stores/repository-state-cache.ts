@@ -12,6 +12,7 @@ import {
   IBranchesState,
   IChangesState,
   ICompareState,
+  IExplorerState,
   IRepositoryState,
   RepositorySectionTab,
   ICommitSelection,
@@ -218,6 +219,17 @@ export class RepositoryStateCache {
     })
   }
 
+  public updateExplorerState<K extends keyof IExplorerState>(
+    repository: Repository,
+    fn: (state: IExplorerState) => Pick<IExplorerState, K>
+  ) {
+    this.update(repository, state => {
+      const explorerState = state.explorerState
+      const newState = merge(explorerState, fn(explorerState))
+      return { explorerState: newState }
+    })
+  }
+
   public initializeMultiCommitOperationState(
     repository: Repository,
     multiCommitOperationState: IMultiCommitOperationState
@@ -377,5 +389,15 @@ function getInitialRepositoryState(): IRepositoryState {
     skipCommitHooks: false,
     signOffCommits: false,
     allowEmptyCommit: false,
+    explorerState: {
+      fileTree: [],
+      selectedPath: null,
+      selectedPathType: null,
+      expandedPaths: new Set<string>(),
+      filteredCommitSHAs: [],
+      isLoadingFilteredCommits: false,
+      loadingForBranchSha: null,
+      workingDirectoryChangedPaths: new Set<string>(),
+    },
   }
 }

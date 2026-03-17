@@ -238,6 +238,35 @@ export class GitStore extends BaseStore {
     return commits.map(c => c.sha)
   }
 
+  /**
+   * Load a batch of commits filtered by a specific path.
+   * Used by the File Explorer to show path-scoped history.
+   */
+  public async loadFilteredCommitBatch(
+    commitish: string,
+    skip: number,
+    path: string
+  ) {
+    const requestKey = `history/filtered/${commitish}/${path}/skip/${skip}`
+    if (this.requestsInFight.has(requestKey)) {
+      return null
+    }
+
+    this.requestsInFight.add(requestKey)
+
+    const commits = await this.performFailableOperation(() =>
+      getCommits(this.repository, commitish, CommitBatchSize, skip, [], [path])
+    )
+
+    this.requestsInFight.delete(requestKey)
+    if (!commits) {
+      return null
+    }
+
+    this.storeCommits(commits)
+    return commits.map(c => c.sha)
+  }
+
   public async refreshTags() {
     const previousTags = this._localTags
     const newTags = await this.performFailableOperation(() =>

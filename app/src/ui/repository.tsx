@@ -7,7 +7,8 @@ import { Changes, ChangesSidebar } from './changes'
 import { NoChanges } from './changes/no-changes'
 import { MultipleSelection } from './changes/multiple-selection'
 import { FilesChangedBadge } from './changes/files-changed-badge'
-import { SelectedCommits, CompareSidebar } from './history'
+import { CompareSidebar, HistoryPane } from './history'
+import { FileExplorer } from './explorer'
 import { Resizable } from './resizable'
 import { TabBar } from './tab-bar'
 import {
@@ -30,8 +31,6 @@ import { TutorialPanel, TutorialWelcome, TutorialDone } from './tutorial'
 import { TutorialStep, isValidTutorialStep } from '../models/tutorial-step'
 import { openFile } from './lib/open-file'
 import { AheadBehindStore } from '../lib/stores/ahead-behind-store'
-import { dragAndDropManager } from '../lib/drag-and-drop-manager'
-import { DragType } from '../models/drag-drop'
 import { PullRequestSuggestedNextAction } from '../models/pull-request'
 import { clamp } from '../lib/clamp'
 import { Emoji } from '../lib/emoji'
@@ -45,6 +44,7 @@ interface IRepositoryViewProps {
   readonly sidebarWidth: IConstrainedValue
   readonly commitSummaryWidth: IConstrainedValue
   readonly stashedFilesWidth: IConstrainedValue
+  readonly explorerWidth: IConstrainedValue
   readonly issuesStore: IssuesStore
   readonly gitHubUserStore: GitHubUserStore
   readonly onViewCommitOnGitHub: (SHA: string, filePath?: string) => void
@@ -480,52 +480,6 @@ export class RepositoryView extends React.Component<
     )
   }
 
-  private renderContentForHistory(): JSX.Element {
-    const { commitSelection, commitLookup, localCommitSHAs } = this.props.state
-    const { changesetData, file, diff, shas, shasInDiff, isContiguous } =
-      commitSelection
-
-    const selectedCommits = []
-    for (const sha of shas) {
-      const commit = commitLookup.get(sha)
-      if (commit !== undefined) {
-        selectedCommits.push(commit)
-      }
-    }
-
-    const showDragOverlay = dragAndDropManager.isDragOfTypeInProgress(
-      DragType.Commit
-    )
-
-    return (
-      <SelectedCommits
-        repository={this.props.repository}
-        dispatcher={this.props.dispatcher}
-        selectedCommits={selectedCommits}
-        shasInDiff={shasInDiff}
-        isContiguous={isContiguous}
-        localCommitSHAs={localCommitSHAs}
-        changesetData={changesetData}
-        selectedFile={file}
-        currentDiff={diff}
-        emoji={this.props.emoji}
-        commitSummaryWidth={this.props.commitSummaryWidth}
-        selectedDiffType={this.props.imageDiffType}
-        externalEditorLabel={this.props.externalEditorLabel}
-        onOpenInExternalEditor={this.props.onOpenInExternalEditor}
-        onViewCommitOnGitHub={this.props.onViewCommitOnGitHub}
-        hideWhitespaceInDiff={this.props.hideWhitespaceInHistoryDiff}
-        showSideBySideDiff={this.props.showSideBySideDiff}
-        onOpenBinaryFile={this.onOpenBinaryFile}
-        onOpenSubmodule={this.onOpenSubmodule}
-        onChangeImageDiffType={this.onChangeImageDiffType}
-        onDiffOptionsOpened={this.onDiffOptionsOpened}
-        showDragOverlay={showDragOverlay}
-        accounts={this.props.accounts}
-      />
-    )
-  }
-
   private onDiffOptionsOpened = () => {
     this.props.dispatcher.incrementMetric('diffOptionsViewedCount')
   }
@@ -636,22 +590,119 @@ export class RepositoryView extends React.Component<
     this.props.dispatcher.changeImageDiffType(imageDiffType)
   }
 
-  private renderContent(): JSX.Element | null {
+  private handleExplorerWidthReset = () => {
+    this.props.dispatcher.resetExplorerWidth()
+  }
+
+  private handleExplorerResize = (width: number) => {
+    this.props.dispatcher.setExplorerWidth(width)
+  }
+
+  private renderExplorerSidebar(): JSX.Element {
+    const { explorerState } = this.props.state
+    return (
+      <Resizable
+        id="explorer-sidebar"
+        width={this.props.explorerWidth.value}
+        maximumWidth={this.props.explorerWidth.max}
+        minimumWidth={this.props.explorerWidth.min}
+        onReset={this.handleExplorerWidthReset}
+        onResize={this.handleExplorerResize}
+        description="File Explorer sidebar"
+      >
+        <FileExplorer
+          repository={this.props.repository}
+          dispatcher={this.props.dispatcher}
+          fileTree={explorerState.fileTree}
+          expandedPaths={explorerState.expandedPaths}
+          selectedPath={explorerState.selectedPath}
+          workingDirectoryChangedPaths={explorerState.workingDirectoryChangedPaths}
+          isLoadingFileTree={explorerState.loadingForBranchSha !== null}
+          onOpenInExternalEditor={this.props.onOpenInExternalEditor}
+        />
+      </Resizable>
+    )
+  }
+
+  private renderMainPane(): JSX.Element {
+    return (
+      <div id="main-pane">
+        {this.renderTabs()}
+        {this.renderMainPaneContent()}
+      </div>
+    )
+  }
+
+  private renderMainPaneContent(): JSX.Element | null {
     const selectedSection = this.props.state.selectedSection
     if (selectedSection === RepositorySectionTab.Changes) {
-      return this.renderContentForChanges()
+      return this.renderChangesPane()
     } else if (selectedSection === RepositorySectionTab.History) {
-      return this.renderContentForHistory()
+      return this.renderHistoryPane()
     } else {
       return assertNever(selectedSection, 'Unknown repository section')
     }
   }
 
+  private renderChangesPane(): JSX.Element | null {
+    return (
+      <div id="changes-pane">
+        {this.renderChangesSidebar()}
+        {this.renderContentForChanges()}
+      </div>
+    )
+  }
+
+  private renderHistoryPane(): JSX.Element {
+    const {
+      repository, dispatcher, emoji, state, aheadBehindStore,
+    } = this.props
+    const {
+      commitSelection, commitLookup, compareState, localCommitSHAs,
+      explorerState, remote, localTags, tagsToPush,
+      multiCommitOperationState: mcos,
+    } = state
+    const { shas, shasInDiff, isContiguous, file, diff, changesetData } = commitSelection
+
+    return (
+      <HistoryPane
+        repository={repository}
+        dispatcher={dispatcher}
+        emoji={emoji}
+        explorerState={explorerState}
+        commitLookup={commitLookup}
+        compareState={compareState}
+        localCommitSHAs={localCommitSHAs}
+        selectedCommitSHAs={shas}
+        shasInDiff={shasInDiff}
+        isContiguous={isContiguous}
+        selectedFile={file}
+        currentDiff={diff}
+        changesetData={changesetData}
+        commitSummaryWidth={this.props.commitSummaryWidth}
+        imageDiffType={this.props.imageDiffType}
+        hideWhitespaceInDiff={this.props.hideWhitespaceInHistoryDiff}
+        showSideBySideDiff={this.props.showSideBySideDiff}
+        externalEditorLabel={this.props.externalEditorLabel}
+        onOpenInExternalEditor={this.props.onOpenInExternalEditor}
+        onViewCommitOnGitHub={this.props.onViewCommitOnGitHub}
+        onRevertCommit={this.onRevertCommit}
+        onAmendCommit={this.onAmendCommit}
+        isLocalRepository={remote === null}
+        localTags={localTags}
+        tagsToPush={tagsToPush}
+        isMultiCommitOperationInProgress={mcos !== null}
+        accounts={this.props.accounts}
+        onCherryPick={this.props.onCherryPick}
+      />
+    )
+  }
+
   public render() {
     return (
       <UiView id="repository">
-        {this.renderSidebar()}
-        {this.renderContent()}
+        {this.renderExplorerSidebar()}
+        {this.renderMainPane()}
         {this.maybeRenderTutorialPanel()}
       </UiView>
     )
@@ -704,6 +755,17 @@ export class RepositoryView extends React.Component<
     if (event.ctrlKey && event.key === 'Tab') {
       this.changeTab()
       event.preventDefault()
+    }
+
+    // Ctrl+Shift+E: Focus the File Explorer (VS Code style)
+    if (event.ctrlKey && event.shiftKey && event.key === 'E') {
+      const explorerInput = document.querySelector<HTMLInputElement>(
+        '#file-explorer .explorer-filter-input'
+      )
+      if (explorerInput) {
+        explorerInput.focus()
+        event.preventDefault()
+      }
     }
   }
 

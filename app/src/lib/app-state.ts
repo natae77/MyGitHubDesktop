@@ -189,6 +189,9 @@ export interface IAppState {
   /** The width of the files list in the stash view */
   readonly stashedFilesWidth: IConstrainedValue
 
+  /** The width of the File Explorer sidebar */
+  readonly explorerWidth: IConstrainedValue
+
   /** The width of the files list in the pull request files changed view */
   readonly pullRequestFilesListWidth: IConstrainedValue
 
@@ -494,6 +497,39 @@ export type ConflictState =
   | RebaseConflictState
   | CherryPickConflictState
 
+/** A node in the file tree (from git ls-tree). */
+export interface IFileTreeNode {
+  readonly name: string
+  /** Full relative path from repository root */
+  readonly path: string
+  readonly type: 'tree' | 'blob'
+  readonly children?: ReadonlyArray<IFileTreeNode>
+}
+
+/** State for the File Explorer sidebar. */
+export interface IExplorerState {
+  /** HEAD-based file tree (committed files only) */
+  readonly fileTree: ReadonlyArray<IFileTreeNode>
+  readonly selectedPath: string | null
+  /** Whether the selected path is a folder or file */
+  readonly selectedPathType: 'tree' | 'blob' | null
+  readonly expandedPaths: ReadonlySet<string>
+  readonly filteredCommitSHAs: ReadonlyArray<string>
+  readonly isLoadingFilteredCommits: boolean
+  /**
+   * HEAD SHA of the currently loading file tree request.
+   * null when not loading. Used to detect stale responses
+   * on branch switch (race condition prevention).
+   */
+  readonly loadingForBranchSha: string | null
+  /**
+   * Working directory changed paths (staged + unstaged).
+   * Derived from WorkingDirectoryStatus. Used for
+   * showing modification markers in the Explorer.
+   */
+  readonly workingDirectoryChangedPaths: ReadonlySet<string>
+}
+
 export interface IRepositoryState {
   readonly commitSelection: ICommitSelection
   readonly changesState: IChangesState
@@ -614,6 +650,9 @@ export interface IRepositoryState {
    * This option resets to false after each commit.
    */
   readonly allowEmptyCommit: boolean
+
+  /** State for the File Explorer sidebar */
+  readonly explorerState: IExplorerState
 }
 
 export type CommitOptions = Pick<
