@@ -2610,16 +2610,12 @@ export class AppStore extends TypedBaseStore<IAppState> {
     const isStashedChangesVisible =
       changesState.selection.kind === ChangesSelectionKind.Stash
 
-    const askForConfirmationWhenStashingAllChanges =
-      changesState.stashEntry !== null
-
     updatePreferredAppMenuItemLabels({
       ...labels,
       contributionTargetDefaultBranch,
       isForcePushForCurrentRepository,
       isStashedChangesVisible,
       hasCurrentPullRequest: currentPullRequest !== null,
-      askForConfirmationWhenStashingAllChanges,
       isChangesFilterVisible: this.showChangesFilter,
     })
   }
@@ -4337,7 +4333,8 @@ export class AppStore extends TypedBaseStore<IAppState> {
    */
   public async _createStashForCurrentBranch(
     repository: Repository,
-    showConfirmationDialog: boolean
+    showConfirmationDialog: boolean,
+    files?: ReadonlyArray<WorkingDirectoryFileChange>
   ): Promise<boolean> {
     const repositoryState = this.repositoryStateCache.get(repository)
     const tip = repositoryState.branchesState.tip
@@ -4353,11 +4350,18 @@ export class AppStore extends TypedBaseStore<IAppState> {
         type: PopupType.ConfirmOverwriteStash,
         branchToCheckout: null,
         repository,
+        filesToStash: files,
       })
       return false
     }
 
-    if (await this.createStashAndDropPreviousEntry(repository, currentBranch)) {
+    if (
+      await this.createStashAndDropPreviousEntry(
+        repository,
+        currentBranch,
+        files
+      )
+    ) {
       this.statsStore.increment('stashCreatedOnCurrentBranchCount')
       await this._refreshRepository(repository)
       return true
@@ -7241,13 +7245,14 @@ export class AppStore extends TypedBaseStore<IAppState> {
 
   private async createStashAndDropPreviousEntry(
     repository: Repository,
-    branch: Branch
+    branch: Branch,
+    files?: ReadonlyArray<WorkingDirectoryFileChange>
   ) {
     const entry = await getLastDesktopStashEntryForBranch(repository, branch)
     const gitStore = this.gitStoreCache.get(repository)
 
     const createdStash = await gitStore.performFailableOperation(() =>
-      this.createStashEntry(repository, branch)
+      this.createStashEntry(repository, branch, files)
     )
 
     if (createdStash === true && entry !== null) {
@@ -7261,12 +7266,16 @@ export class AppStore extends TypedBaseStore<IAppState> {
     return createdStash === true
   }
 
-  private async createStashEntry(repository: Repository, branch: Branch) {
+  private async createStashEntry(
+    repository: Repository,
+    branch: Branch,
+    files?: ReadonlyArray<WorkingDirectoryFileChange>
+  ) {
     const { changesState } = this.repositoryStateCache.get(repository)
     const { workingDirectory } = changesState
     const untrackedFiles = getUntrackedFiles(workingDirectory)
 
-    return createDesktopStashEntry(repository, branch, untrackedFiles)
+    return createDesktopStashEntry(repository, branch, untrackedFiles, files)
   }
 
   /** This shouldn't be called directly. See `Dispatcher`. */

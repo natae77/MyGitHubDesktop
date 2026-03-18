@@ -2674,11 +2674,13 @@ export class Dispatcher {
    */
   public createStashForCurrentBranch(
     repository: Repository,
-    showConfirmationDialog: boolean = true
+    showConfirmationDialog: boolean = true,
+    files?: ReadonlyArray<WorkingDirectoryFileChange>
   ) {
     return this.appStore._createStashForCurrentBranch(
       repository,
-      showConfirmationDialog
+      showConfirmationDialog,
+      files
     )
   }
 

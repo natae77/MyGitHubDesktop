@@ -249,6 +249,7 @@ export type PopupDetail =
       type: PopupType.ConfirmOverwriteStash
       repository: Repository
       branchToCheckout: Branch | null
+      filesToStash?: ReadonlyArray<WorkingDirectoryFileChange>
     }
   | {
       type: PopupType.ConfirmDiscardStash

@@ -486,8 +486,20 @@ export class FilterChangesList extends React.Component<
     )
   }
 
-  private onStashChanges = () => {
-    this.props.dispatcher.createStashForCurrentBranch(this.props.repository)
+  private getCheckedFiles = (): ReadonlyArray<WorkingDirectoryFileChange> => {
+    return this.props.workingDirectory.files.filter(f =>
+      f.isIncludedInCommit()
+    )
+  }
+
+  private onStashSelectedFiles = (
+    files: ReadonlyArray<WorkingDirectoryFileChange>
+  ) => {
+    this.props.dispatcher.createStashForCurrentBranch(
+      this.props.repository,
+      true,
+      files
+    )
   }
 
   private onDiscardChanges = (files: ReadonlyArray<string>) => {
@@ -551,12 +563,16 @@ export class FilterChangesList extends React.Component<
       this.props.conflictState !== null ||
       hasConflictedFiles(this.props.workingDirectory)
 
-    const stashAllChangesLabel = __DARWIN__
-      ? 'Stash All Changes'
-      : 'Stash all changes'
-    const confirmStashAllChangesLabel = __DARWIN__
-      ? 'Stash All Changes…'
-      : 'Stash all changes…'
+    const checkedFiles = this.getCheckedFiles()
+    const hasCheckedFiles = checkedFiles.length > 0
+
+    const stashLabel = hasStash
+      ? __DARWIN__
+        ? 'Stash Selected Files…'
+        : 'Stash selected files…'
+      : __DARWIN__
+        ? 'Stash Selected Files'
+        : 'Stash selected files'
 
     const items: IMenuItem[] = [
       {
@@ -565,9 +581,12 @@ export class FilterChangesList extends React.Component<
         enabled: hasLocalChanges,
       },
       {
-        label: hasStash ? confirmStashAllChangesLabel : stashAllChangesLabel,
-        action: this.onStashChanges,
-        enabled: hasLocalChanges && this.props.branch !== null && !hasConflicts,
+        label: stashLabel,
+        action: () => this.onStashSelectedFiles(checkedFiles),
+        enabled:
+          hasCheckedFiles &&
+          this.props.branch !== null &&
+          !hasConflicts,
       },
     ]
 

@@ -18,13 +18,6 @@ const showPullRequestLabel = __DARWIN__
 const defaultBranchNameValue = __DARWIN__ ? 'Default Branch' : 'default branch'
 const confirmRepositoryRemovalLabel = __DARWIN__ ? 'Remove…' : '&Remove…'
 const repositoryRemovalLabel = __DARWIN__ ? 'Remove' : '&Remove'
-const confirmStashAllChangesLabel = __DARWIN__
-  ? 'Stash All Changes…'
-  : '&Stash all changes…'
-const stashAllChangesLabel = __DARWIN__
-  ? 'Stash All Changes'
-  : '&Stash all changes'
-
 enum ZoomDirection {
   Reset,
   In,
@@ -44,7 +37,6 @@ export function buildDefaultMenu({
   contributionTargetDefaultBranch = defaultBranchNameValue,
   isForcePushForCurrentRepository = false,
   isStashedChangesVisible = false,
-  askForConfirmationWhenStashingAllChanges = true,
   isChangesFilterVisible = true,
 }: MenuLabelsEvent): Electron.Menu {
   contributionTargetDefaultBranch = truncateWithEllipsis(
@@ -411,12 +403,12 @@ export function buildDefaultMenu({
       click: emit('discard-all-changes'),
     },
     {
-      label: askForConfirmationWhenStashingAllChanges
-        ? confirmStashAllChangesLabel
-        : stashAllChangesLabel,
-      id: 'stash-all-changes',
+      label: __DARWIN__
+        ? 'Stash Selected Files'
+        : '&Stash selected files',
+      id: 'stash-selected-files',
       accelerator: 'CmdOrCtrl+Shift+S',
-      click: emit('stash-all-changes'),
+      click: emit('stash-selected-files'),
     },
     separator,
     {
