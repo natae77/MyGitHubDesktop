@@ -1,6 +1,10 @@
 import { MenuIDs } from '../models/menu-ids'
 import { merge } from './merge'
-import { IAppState, SelectionType } from '../lib/app-state'
+import {
+  IAppState,
+  SelectionType,
+  ChangesSelectionKind,
+} from '../lib/app-state'
 import {
   Repository,
   isRepositoryWithGitHubRepository,
@@ -106,7 +110,7 @@ const allMenuIds: ReadonlyArray<MenuIDs> = [
   'rename-branch',
   'delete-branch',
   'discard-all-changes',
-  'stash-all-changes',
+  'stash-selected-files',
   'preferences',
   'update-branch-with-contribution-target-branch',
   'compare-to-branch',
@@ -163,6 +167,7 @@ function getRepositoryMenuBuilder(state: IAppState): MenuStateBuilder {
   let onBranch = false
   let onDetachedHead = false
   let hasChangedFiles = false
+  let hasSelectedFiles = false
   let hasConflicts = false
   let hasPublishedBranch = false
   let networkActionInProgress = false
@@ -228,6 +233,9 @@ function getRepositoryMenuBuilder(state: IAppState): MenuStateBuilder {
       changesState.conflictState !== null ||
       hasConflictedFiles(workingDirectory)
     hasChangedFiles = workingDirectory.files.length > 0
+    hasSelectedFiles =
+      changesState.selection.kind === ChangesSelectionKind.WorkingDirectory &&
+      changesState.selection.selectedFileIDs.length > 0
   }
 
   // These are IDs for menu items that are entirely _and only_
@@ -324,8 +332,8 @@ function getRepositoryMenuBuilder(state: IAppState): MenuStateBuilder {
     )
 
     menuStateBuilder.setEnabled(
-      'stash-all-changes',
-      hasChangedFiles && onBranch && !rebaseInProgress && !hasConflicts
+      'stash-selected-files',
+      hasSelectedFiles && onBranch && !rebaseInProgress && !hasConflicts
     )
 
     menuStateBuilder.setEnabled('compare-to-branch', !onDetachedHead)
@@ -360,7 +368,7 @@ function getRepositoryMenuBuilder(state: IAppState): MenuStateBuilder {
     menuStateBuilder.disable('rename-branch')
     menuStateBuilder.disable('delete-branch')
     menuStateBuilder.disable('discard-all-changes')
-    menuStateBuilder.disable('stash-all-changes')
+    menuStateBuilder.disable('stash-selected-files')
     menuStateBuilder.disable('update-branch-with-contribution-target-branch')
     menuStateBuilder.disable('merge-branch')
     menuStateBuilder.disable('squash-and-merge-branch')

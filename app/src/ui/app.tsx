@@ -9,6 +9,7 @@ import {
   SelectionType,
   HistoryTabMode,
   CommitOptions,
+  ChangesSelectionKind,
 } from '../lib/app-state'
 import { Dispatcher } from './dispatcher'
 import { AppStore, GitHubUserStore, IssuesStore } from '../lib/stores'
@@ -40,6 +41,7 @@ import { Account, isDotComAccount } from '../models/account'
 import { TipState } from '../models/tip'
 import { CloneRepositoryTab } from '../models/clone-repository-tab'
 import { CloningRepository } from '../models/cloning-repository'
+import { WorkingDirectoryFileChange } from '../models/status'
 
 import { TitleBar, ZoomInfo, FullScreenInfo } from './window'
 
@@ -459,8 +461,8 @@ export class App extends React.Component<IAppProps, IAppState> {
         return this.deleteBranch()
       case 'discard-all-changes':
         return this.discardAllChanges()
-      case 'stash-all-changes':
-        return this.stashAllChanges()
+      case 'stash-selected-files':
+        return this.stashSelectedFiles()
       case 'show-preferences':
         return this.props.dispatcher.showPopup({ type: PopupType.Preferences })
       case 'open-working-directory':
@@ -784,12 +786,39 @@ export class App extends React.Component<IAppProps, IAppState> {
     })
   }
 
-  private stashAllChanges() {
-    const repository = this.getRepository()
+  private stashSelectedFiles() {
+    const { selectedState } = this.state
 
-    if (repository !== null && repository instanceof Repository) {
-      this.props.dispatcher.createStashForCurrentBranch(repository)
+    if (
+      selectedState == null ||
+      selectedState.type !== SelectionType.Repository
+    ) {
+      return
     }
+
+    const { repository } = selectedState
+    const { changesState } = selectedState.state
+    const { workingDirectory, selection } = changesState
+
+    if (selection.kind !== ChangesSelectionKind.WorkingDirectory) {
+      return
+    }
+
+    const selectedFiles = selection.selectedFileIDs
+      .map(id => workingDirectory.findFileWithID(id))
+      .filter(
+        (f): f is WorkingDirectoryFileChange => f !== null
+      )
+
+    if (selectedFiles.length === 0) {
+      return
+    }
+
+    this.props.dispatcher.createStashForCurrentBranch(
+      repository,
+      true,
+      selectedFiles
+    )
   }
 
   private showAddLocalRepo = () => {
@@ -1954,13 +1983,18 @@ export class App extends React.Component<IAppProps, IAppState> {
         )
       }
       case PopupType.ConfirmOverwriteStash: {
-        const { repository, branchToCheckout: branchToCheckout } = popup
+        const {
+          repository,
+          branchToCheckout: branchToCheckout,
+          filesToStash,
+        } = popup
         return (
           <OverwriteStash
             key="overwrite-stash"
             dispatcher={this.props.dispatcher}
             repository={repository}
             branchToCheckout={branchToCheckout}
+            filesToStash={filesToStash}
             onDismissed={onPopupDismissedFn}
           />
         )

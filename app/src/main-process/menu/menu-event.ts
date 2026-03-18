@@ -13,7 +13,7 @@ export type MenuEvent =
   | 'rename-branch'
   | 'delete-branch'
   | 'discard-all-changes'
-  | 'stash-all-changes'
+  | 'stash-selected-files'
   | 'show-preferences'
   | 'choose-repository'
   | 'open-working-directory'

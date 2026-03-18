@@ -6,11 +6,13 @@ import { Dispatcher } from '../dispatcher'
 import { Row } from '../lib/row'
 import { OkCancelButtonGroup } from '../dialog/ok-cancel-button-group'
 import { UncommittedChangesStrategy } from '../../models/uncommitted-changes-strategy'
+import { WorkingDirectoryFileChange } from '../../models/status'
 
 interface IOverwriteStashProps {
   readonly dispatcher: Dispatcher
   readonly repository: Repository
   readonly branchToCheckout: Branch | null
+  readonly filesToStash?: ReadonlyArray<WorkingDirectoryFileChange>
   readonly onDismissed: () => void
 }
 
@@ -59,7 +61,13 @@ export class OverwriteStash extends React.Component<
   }
 
   private onSubmit = async () => {
-    const { dispatcher, repository, branchToCheckout, onDismissed } = this.props
+    const {
+      dispatcher,
+      repository,
+      branchToCheckout,
+      filesToStash,
+      onDismissed,
+    } = this.props
     this.setState({ isLoading: true })
 
     try {
@@ -67,7 +75,11 @@ export class OverwriteStash extends React.Component<
         const strategy = UncommittedChangesStrategy.StashOnCurrentBranch
         await dispatcher.checkoutBranch(repository, branchToCheckout, strategy)
       } else {
-        await dispatcher.createStashForCurrentBranch(repository, false)
+        await dispatcher.createStashForCurrentBranch(
+          repository,
+          false,
+          filesToStash
+        )
       }
     } finally {
       this.setState({ isLoading: false })
