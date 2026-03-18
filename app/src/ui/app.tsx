@@ -11,6 +11,7 @@ import {
   CommitOptions,
 } from '../lib/app-state'
 import { Dispatcher } from './dispatcher'
+import { DiffToolContext } from '../lib/diff-tools'
 import { AppStore, GitHubUserStore, IssuesStore } from '../lib/stores'
 import { assertNever } from '../lib/fatal-error'
 import { shell } from '../lib/app-shell'
@@ -1314,6 +1315,12 @@ export class App extends React.Component<IAppProps, IAppState> {
       : this.state.selectedExternalEditor ?? undefined
   }
 
+  private get externalDiffToolLabel() {
+    return this.state.useCustomDiffTool
+      ? undefined
+      : this.state.selectedExternalDiffTool ?? undefined
+  }
+
   private openCurrentRepositoryInExternalEditor() {
     const repository = this.getRepository()
     if (!repository) {
@@ -1593,6 +1600,9 @@ export class App extends React.Component<IAppProps, IAppState> {
             customEditor={this.state.customEditor}
             useCustomShell={this.state.useCustomShell}
             customShell={this.state.customShell}
+            selectedExternalDiffTool={this.state.selectedExternalDiffTool}
+            useCustomDiffTool={this.state.useCustomDiffTool}
+            customDiffTool={this.state.customDiffTool}
             repositoryIndicatorsEnabled={this.state.repositoryIndicatorsEnabled}
             onEditGlobalGitConfig={this.editGlobalGitConfig}
             underlineLinks={this.state.underlineLinks}
@@ -2441,10 +2451,12 @@ export class App extends React.Component<IAppProps, IAppState> {
             prRecentBaseBranches={prRecentBaseBranches}
             repository={repository}
             externalEditorLabel={externalEditorLabel}
+            externalDiffToolLabel={this.externalDiffToolLabel}
             showSideBySideDiff={showSideBySideDiff}
             currentBranchHasPullRequest={currentBranchHasPullRequest}
             onDismissed={onPopupDismissedFn}
             onOpenInExternalEditor={this.onOpenInExternalEditor}
+            onOpenInExternalDiffTool={this.onOpenInExternalDiffTool}
           />
         )
       }
@@ -3006,6 +3018,22 @@ export class App extends React.Component<IAppProps, IAppState> {
     this.props.dispatcher.openInExternalEditor(fullPath)
   }
 
+  private onOpenInExternalDiffTool = (
+    filePath: string,
+    context: DiffToolContext
+  ) => {
+    const repository = this.state.selectedState?.repository
+    if (repository === undefined || !(repository instanceof Repository)) {
+      return
+    }
+
+    this.props.dispatcher.openInExternalDiffTool(
+      repository.path,
+      filePath,
+      context
+    )
+  }
+
   private showRepository = (repository: Repository | CloningRepository) => {
     if (!(repository instanceof Repository)) {
       return
@@ -3480,6 +3508,8 @@ export class App extends React.Component<IAppProps, IAppState> {
           externalEditorLabel={this.externalEditorLabel}
           resolvedExternalEditor={state.resolvedExternalEditor}
           onOpenInExternalEditor={this.onOpenInExternalEditor}
+          externalDiffToolLabel={this.externalDiffToolLabel}
+          onOpenInExternalDiffTool={this.onOpenInExternalDiffTool}
           appMenu={state.appMenuState[0]}
           currentTutorialStep={state.currentOnboardingTutorialStep}
           onExitTutorial={this.onExitTutorial}

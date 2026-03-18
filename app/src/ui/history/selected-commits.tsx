@@ -15,6 +15,7 @@ import {
   isSafeFileExtension,
   CopyFilePathLabel,
   DefaultEditorLabel,
+  DefaultDiffToolLabel,
   RevealInFileManagerLabel,
   OpenWithDefaultProgramLabel,
   CopyRelativeFilePathLabel,
@@ -22,6 +23,7 @@ import {
 import { ThrottledScheduler } from '../lib/throttled-scheduler'
 
 import { Dispatcher } from '../dispatcher'
+import { DiffToolContext } from '../../lib/diff-tools'
 import { Resizable } from '../resizable'
 import { showContextualMenu } from '../../lib/menu-item'
 
@@ -60,6 +62,18 @@ interface ISelectedCommitsProps {
    * @param path The path of the file relative to the root of the repository
    */
   readonly onOpenInExternalEditor: (path: string) => void
+
+  /** The name of the currently selected external diff tool */
+  readonly externalDiffToolLabel?: string
+
+  /**
+   * Callback to open a file diff using the configured external diff tool
+   */
+  readonly onOpenInExternalDiffTool: (
+    filePath: string,
+    context: DiffToolContext
+  ) => void
+
   readonly onViewCommitOnGitHub: (SHA: string, filePath?: string) => void
   readonly hideWhitespaceInDiff: boolean
 
@@ -379,6 +393,7 @@ export class SelectedCommits extends React.Component<
       localCommitSHAs,
       repository,
       externalEditorLabel,
+      externalDiffToolLabel,
     } = this.props
 
     const fullPath = Path.join(repository.path, file.path)
@@ -402,6 +417,22 @@ export class SelectedCommits extends React.Component<
       ? `Open in ${externalEditorLabel}`
       : DefaultEditorLabel
 
+    const openInExternalDiffTool = externalDiffToolLabel
+      ? `Open in ${externalDiffToolLabel}`
+      : DefaultDiffToolLabel
+
+    const commit =
+      selectedCommits.length === 1 ? selectedCommits[0] : undefined
+    const hasParent = commit !== undefined && commit.parentSHAs.length > 0
+    const diffToolContext: DiffToolContext | undefined =
+      commit && hasParent
+        ? {
+            kind: 'commit',
+            sha: commit.sha,
+            parentSHAs: commit.parentSHAs,
+          }
+        : undefined
+
     const items: IMenuItem[] = [
       {
         label: RevealInFileManagerLabel,
@@ -412,6 +443,15 @@ export class SelectedCommits extends React.Component<
         label: openInExternalEditor,
         action: () => this.props.onOpenInExternalEditor(file.path),
         enabled: fileExistsOnDisk,
+      },
+      {
+        label: openInExternalDiffTool,
+        action: () => {
+          if (diffToolContext) {
+            this.props.onOpenInExternalDiffTool(file.path, diffToolContext)
+          }
+        },
+        enabled: diffToolContext !== undefined,
       },
       {
         label: OpenWithDefaultProgramLabel,

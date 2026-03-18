@@ -247,6 +247,17 @@ import {
   getFloatNumber,
 } from '../local-storage'
 import { ExternalEditorError, suggestedExternalEditor } from '../editors/shared'
+import {
+  ExternalDiffToolError,
+  suggestedExternalDiffTool,
+} from '../diff-tools/shared'
+import {
+  getAvailableDiffTools,
+  findDiffToolOrDefault,
+  launchExternalDiffTool,
+  launchCustomExternalDiffTool,
+  DiffToolContext,
+} from '../diff-tools'
 import { ApiRepositoriesStore } from './api-repositories-store'
 import {
   updateChangedFiles,
@@ -460,6 +471,10 @@ const customEditorKey = 'custom-editor'
 export const useCustomShellKey = 'use-custom-shell'
 const customShellKey = 'custom-shell'
 
+const externalDiffToolKey: string = 'externalDiffTool'
+export const useCustomDiffToolKey = 'use-custom-diff-tool'
+const customDiffToolKey = 'custom-diff-tool'
+
 export const underlineLinksKey = 'underline-links'
 export const underlineLinksDefault = true
 
@@ -611,6 +626,11 @@ export class AppStore extends TypedBaseStore<IAppState> {
 
   private useCustomShell: boolean = false
   private customShell: ICustomIntegration | null = null
+
+  private selectedExternalDiffTool: string | null = null
+  private resolvedExternalDiffTool: string | null = null
+  private useCustomDiffTool: boolean = false
+  private customDiffTool: ICustomIntegration | null = null
 
   private showCIStatusPopover: boolean = false
 
@@ -1121,6 +1141,10 @@ export class AppStore extends TypedBaseStore<IAppState> {
       customEditor: this.customEditor,
       useCustomShell: this.useCustomShell,
       customShell: this.customShell,
+      selectedExternalDiffTool: this.selectedExternalDiffTool,
+      resolvedExternalDiffTool: this.resolvedExternalDiffTool,
+      useCustomDiffTool: this.useCustomDiffTool,
+      customDiffTool: this.customDiffTool,
       showCIStatusPopover: this.showCIStatusPopover,
       notificationsEnabled: getNotificationsEnabled(),
       pullRequestSuggestedNextAction: this.pullRequestSuggestedNextAction,
@@ -2303,6 +2327,12 @@ export class AppStore extends TypedBaseStore<IAppState> {
       await this.lookupSelectedExternalEditor()
     ).catch(e => log.error('Failed resolving current editor at startup', e))
 
+    this.updateSelectedExternalDiffTool(
+      await this.lookupSelectedExternalDiffTool()
+    ).catch(e =>
+      log.error('Failed resolving current diff tool at startup', e)
+    )
+
     const shellValue = localStorage.getItem(shellKey)
     this.selectedShell = shellValue ? parseShell(shellValue) : DefaultShell
 
@@ -2365,6 +2395,18 @@ export class AppStore extends TypedBaseStore<IAppState> {
     const migratedCustomShell = migratedCustomIntegration(this.customShell)
     if (migratedCustomShell !== null) {
       this._setCustomShell(migratedCustomShell)
+    }
+
+    this.useCustomDiffTool =
+      enableCustomIntegration() && getBoolean(useCustomDiffToolKey, false)
+    this.customDiffTool =
+      getObject<ICustomIntegration>(customDiffToolKey) ?? null
+
+    const migratedCustomDiffTool = migratedCustomIntegration(
+      this.customDiffTool
+    )
+    if (migratedCustomDiffTool !== null) {
+      this._setCustomDiffTool(migratedCustomDiffTool)
     }
 
     this.pullRequestSuggestedNextAction =
@@ -2535,6 +2577,33 @@ export class AppStore extends TypedBaseStore<IAppState> {
       const value = editors[0]
       // store this value to avoid the lookup next time
       localStorage.setItem(externalEditorKey, value)
+      return value
+    }
+
+    return null
+  }
+
+  private updateSelectedExternalDiffTool(
+    selectedDiffTool: string | null
+  ): Promise<void> {
+    this.selectedExternalDiffTool = selectedDiffTool
+
+    return this._resolveCurrentDiffTool()
+  }
+
+  private async lookupSelectedExternalDiffTool(): Promise<string | null> {
+    const diffTools = (await getAvailableDiffTools()).map(
+      found => found.editor
+    )
+
+    const value = localStorage.getItem(externalDiffToolKey)
+    if (value && diffTools.includes(value)) {
+      return value
+    }
+
+    if (diffTools.length) {
+      const value = diffTools[0]
+      localStorage.setItem(externalDiffToolKey, value)
       return value
     }
 
@@ -6083,6 +6152,44 @@ export class AppStore extends TypedBaseStore<IAppState> {
     }
   }
 
+  public async _openInExternalDiffTool(
+    repositoryPath: string,
+    filePath: string,
+    context: DiffToolContext
+  ): Promise<void> {
+    const {
+      selectedExternalDiffTool,
+      useCustomDiffTool,
+      customDiffTool,
+    } = this.getState()
+
+    try {
+      if (useCustomDiffTool && customDiffTool) {
+        await launchCustomExternalDiffTool(
+          repositoryPath,
+          filePath,
+          customDiffTool,
+          context
+        )
+      } else {
+        const match = await findDiffToolOrDefault(selectedExternalDiffTool)
+        if (match === null) {
+          this.emitError(
+            new ExternalDiffToolError(
+              `No suitable diff tools installed for GitHub Desktop to launch. Install ${suggestedExternalDiffTool.name} for your platform and restart GitHub Desktop to try again.`,
+              { suggestDefaultDiffTool: true }
+            )
+          )
+          return
+        }
+
+        await launchExternalDiffTool(repositoryPath, filePath, match, context)
+      }
+    } catch (error) {
+      this.emitError(error)
+    }
+  }
+
   /** This shouldn't be called directly. See `Dispatcher`. */
   public async _saveGitIgnore(
     repository: Repository,
@@ -7173,6 +7280,19 @@ export class AppStore extends TypedBaseStore<IAppState> {
     return this.resolvedExternalEditor
   }
 
+  public async _resolveCurrentDiffTool() {
+    const match = await findDiffToolOrDefault(this.selectedExternalDiffTool)
+    const resolvedExternalDiffTool = match != null ? match.editor : null
+    if (this.resolvedExternalDiffTool !== resolvedExternalDiffTool) {
+      this.resolvedExternalDiffTool = resolvedExternalDiffTool
+      this.emitUpdate()
+    }
+  }
+
+  public getResolvedExternalDiffTool = () => {
+    return this.resolvedExternalDiffTool
+  }
+
   /** This shouldn't be called directly. See `Dispatcher`. */
   public _updateManualConflictResolution(
     repository: Repository,
@@ -7747,6 +7867,25 @@ export class AppStore extends TypedBaseStore<IAppState> {
   public _setCustomShell(customShell: ICustomIntegration) {
     setObject(customShellKey, customShell)
     this.customShell = customShell
+    this.emitUpdate()
+  }
+
+  public _setExternalDiffTool(selectedDiffTool: string) {
+    const promise = this.updateSelectedExternalDiffTool(selectedDiffTool)
+    localStorage.setItem(externalDiffToolKey, selectedDiffTool)
+    this.emitUpdate()
+    return promise
+  }
+
+  public _setUseCustomDiffTool(useCustomDiffTool: boolean) {
+    setBoolean(useCustomDiffToolKey, useCustomDiffTool)
+    this.useCustomDiffTool = useCustomDiffTool
+    this.emitUpdate()
+  }
+
+  public _setCustomDiffTool(customDiffTool: ICustomIntegration) {
+    setObject(customDiffToolKey, customDiffTool)
+    this.customDiffTool = customDiffTool
     this.emitUpdate()
   }
 

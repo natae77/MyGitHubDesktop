@@ -18,6 +18,7 @@ import {
   CommitOptions,
 } from '../lib/app-state'
 import { Dispatcher } from './dispatcher'
+import { DiffToolContext } from '../lib/diff-tools'
 import { IssuesStore, GitHubUserStore } from '../lib/stores'
 import { assertNever } from '../lib/fatal-error'
 import { Account } from '../models/account'
@@ -95,6 +96,17 @@ interface IRepositoryViewProps {
    * @param fullPath The full path to the file on disk
    */
   readonly onOpenInExternalEditor: (fullPath: string) => void
+
+  /** The name of the currently selected external diff tool */
+  readonly externalDiffToolLabel?: string
+
+  /**
+   * Callback to open a file diff using the configured external diff tool
+   */
+  readonly onOpenInExternalDiffTool: (
+    filePath: string,
+    context: DiffToolContext
+  ) => void
 
   /**
    * The top-level application menu item.
@@ -317,6 +329,8 @@ export class RepositoryView extends React.Component<
         isShowingFoldout={this.props.isShowingFoldout}
         externalEditorLabel={this.props.externalEditorLabel}
         onOpenInExternalEditor={this.props.onOpenInExternalEditor}
+        externalDiffToolLabel={this.props.externalDiffToolLabel}
+        onOpenInExternalDiffTool={this.props.onOpenInExternalDiffTool}
         onChangesListScrolled={this.onChangesListScrolled}
         changesListScrollTop={scrollTop}
         shouldNudgeToCommit={
@@ -513,6 +527,8 @@ export class RepositoryView extends React.Component<
         selectedDiffType={this.props.imageDiffType}
         externalEditorLabel={this.props.externalEditorLabel}
         onOpenInExternalEditor={this.props.onOpenInExternalEditor}
+        externalDiffToolLabel={this.props.externalDiffToolLabel}
+        onOpenInExternalDiffTool={this.props.onOpenInExternalDiffTool}
         onViewCommitOnGitHub={this.props.onViewCommitOnGitHub}
         hideWhitespaceInDiff={this.props.hideWhitespaceInHistoryDiff}
         showSideBySideDiff={this.props.showSideBySideDiff}

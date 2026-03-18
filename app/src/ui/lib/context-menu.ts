@@ -17,6 +17,10 @@ export const DefaultEditorLabel = __DARWIN__
   ? 'Open in External Editor'
   : 'Open in external editor'
 
+export const DefaultDiffToolLabel = __DARWIN__
+  ? 'Open in External Diff Tool'
+  : 'Open in external diff tool'
+
 export const DefaultShellLabel = __DARWIN__ ? 'Open in Shell' : 'Open in shell'
 
 export const RevealInFileManagerLabel = __DARWIN__

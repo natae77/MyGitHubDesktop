@@ -11,6 +11,7 @@ import {
 } from '../../lib/app-state'
 import { Repository } from '../../models/repository'
 import { Dispatcher } from '../dispatcher'
+import { DiffToolContext } from '../../lib/diff-tools'
 import { IssuesStore, GitHubUserStore } from '../../lib/stores'
 import { CommitIdentity } from '../../models/commit-identity'
 import { Commit, ICommitContext } from '../../models/commit'
@@ -80,6 +81,18 @@ interface IChangesSidebarProps {
    * @param fullPath The full path to the file on disk
    */
   readonly onOpenInExternalEditor: (fullPath: string) => void
+
+  /** The name of the currently selected external diff tool */
+  readonly externalDiffToolLabel?: string
+
+  /**
+   * Callback to open a file diff using the configured external diff tool
+   */
+  readonly onOpenInExternalDiffTool: (
+    filePath: string,
+    context: DiffToolContext
+  ) => void
+
   readonly onChangesListScrolled: (scrollTop: number) => void
   readonly changesListScrollTop?: number
 
@@ -471,6 +484,8 @@ export class ChangesSidebar extends React.Component<IChangesSidebarProps, {}> {
           coAuthors={coAuthors}
           externalEditorLabel={this.props.externalEditorLabel}
           onOpenItemInExternalEditor={this.onOpenItemInExternalEditor}
+          externalDiffToolLabel={this.props.externalDiffToolLabel}
+          onOpenInExternalDiffTool={this.props.onOpenInExternalDiffTool}
           onChangesListScrolled={this.props.onChangesListScrolled}
           changesListScrollTop={this.props.changesListScrollTop}
           stashEntry={this.props.changes.stashEntry}

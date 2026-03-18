@@ -16,6 +16,7 @@ import {
 import { PullRequestFilesChanged } from './pull-request-files-changed'
 import { PullRequestMergeStatus } from './pull-request-merge-status'
 import { ComputedAction } from '../../models/computed-action'
+import { DiffToolContext } from '../../lib/diff-tools'
 
 interface IOpenPullRequestDialogProps {
   readonly repository: Repository
@@ -70,6 +71,17 @@ interface IOpenPullRequestDialogProps {
    * @param fullPath The full path to the file on disk
    */
   readonly onOpenInExternalEditor: (fullPath: string) => void
+
+  /** Label for selected external diff tool */
+  readonly externalDiffToolLabel?: string
+
+  /**
+   * Callback to open a file diff using the configured external diff tool
+   */
+  readonly onOpenInExternalDiffTool: (
+    filePath: string,
+    context: DiffToolContext
+  ) => void
 
   /** Width to use for the files list pane in the files changed view */
   readonly fileListWidth: IConstrainedValue
@@ -188,6 +200,8 @@ export class OpenPullRequestDialog extends React.Component<IOpenPullRequestDialo
         showSideBySideDiff={this.props.showSideBySideDiff}
         repository={repository}
         onOpenInExternalEditor={this.props.onOpenInExternalEditor}
+        externalDiffToolLabel={this.props.externalDiffToolLabel}
+        onOpenInExternalDiffTool={this.props.onOpenInExternalDiffTool}
       />
     )
   }
