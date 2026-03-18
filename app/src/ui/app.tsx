@@ -459,8 +459,8 @@ export class App extends React.Component<IAppProps, IAppState> {
         return this.renameBranch()
       case 'delete-branch':
         return this.deleteBranch()
-      case 'discard-all-changes':
-        return this.discardAllChanges()
+      case 'discard-checked-files':
+        return this.discardCheckedFiles()
       case 'stash-selected-files':
         return this.stashSelectedFiles()
       case 'show-preferences':
@@ -768,21 +768,36 @@ export class App extends React.Component<IAppProps, IAppState> {
     }
   }
 
-  private discardAllChanges() {
-    const state = this.state.selectedState
+  private discardCheckedFiles() {
+    const { selectedState } = this.state
 
-    if (state == null || state.type !== SelectionType.Repository) {
+    if (
+      selectedState == null ||
+      selectedState.type !== SelectionType.Repository
+    ) {
       return
     }
 
-    const { workingDirectory } = state.state.changesState
+    const { changesState } = selectedState.state
+    const { workingDirectory, selection } = changesState
+
+    if (selection.kind !== ChangesSelectionKind.WorkingDirectory) {
+      return
+    }
+
+    const checkedFiles = workingDirectory.files.filter(f =>
+      f.isIncludedInCommit()
+    )
+
+    if (checkedFiles.length === 0) {
+      return
+    }
 
     this.props.dispatcher.showPopup({
       type: PopupType.ConfirmDiscardChanges,
-      repository: state.repository,
-      files: workingDirectory.files,
+      repository: selectedState.repository,
+      files: checkedFiles,
       showDiscardChangesSetting: false,
-      discardingAllChanges: true,
     })
   }
 

@@ -109,7 +109,7 @@ function menuItemStateEqual(state: IMenuItemState, menuItem: MenuItem) {
 const allMenuIds: ReadonlyArray<MenuIDs> = [
   'rename-branch',
   'delete-branch',
-  'discard-all-changes',
+  'discard-checked-files',
   'stash-selected-files',
   'preferences',
   'update-branch-with-contribution-target-branch',
@@ -166,7 +166,6 @@ function getRepositoryMenuBuilder(state: IAppState): MenuStateBuilder {
   let onNonDefaultBranch = false
   let onBranch = false
   let onDetachedHead = false
-  let hasChangedFiles = false
   let hasCheckedFiles = false
   let hasConflicts = false
   let hasPublishedBranch = false
@@ -232,7 +231,6 @@ function getRepositoryMenuBuilder(state: IAppState): MenuStateBuilder {
     hasConflicts =
       changesState.conflictState !== null ||
       hasConflictedFiles(workingDirectory)
-    hasChangedFiles = workingDirectory.files.length > 0
     hasCheckedFiles =
       changesState.selection.kind === ChangesSelectionKind.WorkingDirectory &&
       workingDirectory.files.some(f => f.isIncludedInCommit())
@@ -327,8 +325,8 @@ function getRepositoryMenuBuilder(state: IAppState): MenuStateBuilder {
     )
 
     menuStateBuilder.setEnabled(
-      'discard-all-changes',
-      repositoryActive && hasChangedFiles && !rebaseInProgress
+      'discard-checked-files',
+      repositoryActive && hasCheckedFiles && !rebaseInProgress
     )
 
     menuStateBuilder.setEnabled(
@@ -367,7 +365,7 @@ function getRepositoryMenuBuilder(state: IAppState): MenuStateBuilder {
     menuStateBuilder.disable('create-branch')
     menuStateBuilder.disable('rename-branch')
     menuStateBuilder.disable('delete-branch')
-    menuStateBuilder.disable('discard-all-changes')
+    menuStateBuilder.disable('discard-checked-files')
     menuStateBuilder.disable('stash-selected-files')
     menuStateBuilder.disable('update-branch-with-contribution-target-branch')
     menuStateBuilder.disable('merge-branch')

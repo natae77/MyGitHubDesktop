@@ -2,7 +2,7 @@
 export type MenuIDs =
   | 'rename-branch'
   | 'delete-branch'
-  | 'discard-all-changes'
+  | 'discard-checked-files'
   | 'stash-selected-files'
   | 'preferences'
   | 'update-branch-with-contribution-target-branch'

@@ -397,10 +397,10 @@ export function buildDefaultMenu({
     },
     separator,
     {
-      label: __DARWIN__ ? 'Discard All Changes…' : 'Discard all changes…',
-      id: 'discard-all-changes',
+      label: __DARWIN__ ? 'Discard Selected Files…' : 'Discard selected files…',
+      id: 'discard-checked-files',
       accelerator: 'CmdOrCtrl+Shift+Backspace',
-      click: emit('discard-all-changes'),
+      click: emit('discard-checked-files'),
     },
     {
       label: __DARWIN__
