@@ -14,10 +14,12 @@ import {
   CopyFilePathLabel,
   CopyRelativeFilePathLabel,
   DefaultEditorLabel,
+  DefaultDiffToolLabel,
   isSafeFileExtension,
   OpenWithDefaultProgramLabel,
   RevealInFileManagerLabel,
 } from '../lib/context-menu'
+import { DiffToolContext } from '../../lib/diff-tools'
 import { revealInFileManager } from '../../lib/app-shell'
 import { clipboard } from 'electron'
 import { IConstrainedValue } from '../../lib/app-state'
@@ -64,6 +66,17 @@ interface IPullRequestFilesChangedProps {
    * @param fullPath The full path to the file on disk
    */
   readonly onOpenInExternalEditor: (fullPath: string) => void
+
+  /** Label for selected external diff tool */
+  readonly externalDiffToolLabel?: string
+
+  /**
+   * Callback to open a file diff using the configured external diff tool
+   */
+  readonly onOpenInExternalDiffTool: (
+    filePath: string,
+    context: DiffToolContext
+  ) => void
 }
 
 interface IPullRequestFilesChangedState {
@@ -173,7 +186,8 @@ export class PullRequestFilesChanged extends React.Component<
       return
     }
 
-    const { externalEditorLabel, dispatcher } = this.props
+    const { externalEditorLabel, externalDiffToolLabel, dispatcher } =
+      this.props
 
     const extension = Path.extname(file.path)
     const isSafeExtension = isSafeFileExtension(extension)
@@ -181,6 +195,17 @@ export class PullRequestFilesChanged extends React.Component<
       externalEditorLabel !== undefined
         ? `Open in ${externalEditorLabel}`
         : DefaultEditorLabel
+
+    const openInExternalDiffTool =
+      externalDiffToolLabel !== undefined
+        ? `Open in ${externalDiffToolLabel}`
+        : DefaultDiffToolLabel
+
+    const diffToolContext: DiffToolContext = {
+      kind: 'range',
+      baseSha: file.parentCommitish,
+      headSha: file.commitish,
+    }
 
     const items: IMenuItem[] = [
       {
@@ -192,6 +217,12 @@ export class PullRequestFilesChanged extends React.Component<
         label: openInExternalEditor,
         action: () => dispatcher.openInExternalEditor(fullPath),
         enabled: fileExistsOnDisk,
+      },
+      {
+        label: openInExternalDiffTool,
+        action: () =>
+          this.props.onOpenInExternalDiffTool(file.path, diffToolContext),
+        enabled: true,
       },
       {
         label: OpenWithDefaultProgramLabel,

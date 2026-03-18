@@ -5,6 +5,7 @@ import { Row } from '../../ui/lib/row'
 import { Select } from '../lib/select'
 import { Shell, parse as parseShell } from '../../lib/shells'
 import { suggestedExternalEditor } from '../../lib/editors/shared'
+import { suggestedExternalDiffTool } from '../../lib/diff-tools/shared'
 import { CustomIntegrationForm } from './custom-integration-form'
 import { ICustomIntegration } from '../../lib/custom-integration'
 import { enableCustomIntegration } from '../../lib/feature-flag'
@@ -26,6 +27,13 @@ interface IIntegrationsPreferencesProps {
   readonly onCustomEditorChanged: (customEditor: ICustomIntegration) => void
   readonly onUseCustomShellChanged: (useCustomShell: boolean) => void
   readonly onCustomShellChanged: (customShell: ICustomIntegration) => void
+  readonly availableDiffTools: ReadonlyArray<string>
+  readonly selectedExternalDiffTool: string | null
+  readonly useCustomDiffTool: boolean
+  readonly customDiffTool: ICustomIntegration
+  readonly onSelectedDiffToolChanged: (diffTool: string) => void
+  readonly onUseCustomDiffToolChanged: (useCustomDiffTool: boolean) => void
+  readonly onCustomDiffToolChanged: (customDiffTool: ICustomIntegration) => void
 }
 
 interface IIntegrationsPreferencesState {
@@ -35,6 +43,9 @@ interface IIntegrationsPreferencesState {
   readonly customEditor: ICustomIntegration
   readonly useCustomShell: boolean
   readonly customShell: ICustomIntegration
+  readonly selectedExternalDiffTool: string | null
+  readonly useCustomDiffTool: boolean
+  readonly customDiffTool: ICustomIntegration
 }
 
 export class Integrations extends React.Component<
@@ -43,6 +54,7 @@ export class Integrations extends React.Component<
 > {
   private customEditorFormRef = React.createRef<CustomIntegrationForm>()
   private customShellFormRef = React.createRef<CustomIntegrationForm>()
+  private customDiffToolFormRef = React.createRef<CustomIntegrationForm>()
 
   public constructor(props: IIntegrationsPreferencesProps) {
     super(props)
@@ -54,6 +66,9 @@ export class Integrations extends React.Component<
       customEditor: this.props.customEditor,
       useCustomShell: this.props.useCustomShell,
       customShell: this.props.customShell,
+      selectedExternalDiffTool: this.props.selectedExternalDiffTool,
+      useCustomDiffTool: this.props.useCustomDiffTool,
+      customDiffTool: this.props.customDiffTool,
     }
   }
 
@@ -81,6 +96,18 @@ export class Integrations extends React.Component<
         nextProps.onSelectedShellChanged(selectedShell)
       }
     }
+    const diffTools = nextProps.availableDiffTools
+    let selectedExternalDiffTool = nextProps.selectedExternalDiffTool
+    if (diffTools.length) {
+      const indexOf = selectedExternalDiffTool
+        ? diffTools.indexOf(selectedExternalDiffTool)
+        : -1
+      if (indexOf === -1) {
+        selectedExternalDiffTool = diffTools[0]
+        nextProps.onSelectedDiffToolChanged(selectedExternalDiffTool)
+      }
+    }
+
     this.setState({
       selectedExternalEditor,
       selectedShell,
@@ -88,6 +115,9 @@ export class Integrations extends React.Component<
       useCustomShell: nextProps.useCustomShell,
       customShell: nextProps.customShell,
       customEditor: nextProps.customEditor,
+      selectedExternalDiffTool,
+      useCustomDiffTool: nextProps.useCustomDiffTool,
+      customDiffTool: nextProps.customDiffTool,
     })
   }
 
@@ -112,6 +142,11 @@ export class Integrations extends React.Component<
       if (availableShells.length === 0 && !useCustomShell) {
         this.setSelectedShell(CustomIntegrationValue)
       }
+
+      const { availableDiffTools, useCustomDiffTool } = this.props
+      if (availableDiffTools.length === 0 && !useCustomDiffTool) {
+        this.setSelectedDiffTool(CustomIntegrationValue)
+      }
     }
   }
 
@@ -127,6 +162,10 @@ export class Integrations extends React.Component<
 
     if (!prevState.useCustomShell && this.state.useCustomShell) {
       this.customShellFormRef.current?.focus()
+    }
+
+    if (!prevState.useCustomDiffTool && this.state.useCustomDiffTool) {
+      this.customDiffToolFormRef.current?.focus()
     }
   }
 
@@ -351,6 +390,134 @@ export class Integrations extends React.Component<
     this.props.onCustomShellChanged(customShell)
   }
 
+  private onSelectedDiffToolChanged = (
+    event: React.FormEvent<HTMLSelectElement>
+  ) => {
+    const value = event.currentTarget.value
+    if (!value) {
+      return
+    }
+
+    this.setSelectedDiffTool(value)
+  }
+
+  private setSelectedDiffTool = (diffTool: string) => {
+    if (diffTool === CustomIntegrationValue) {
+      this.setState({ useCustomDiffTool: true })
+      this.props.onUseCustomDiffToolChanged(true)
+    } else {
+      this.setState({
+        useCustomDiffTool: false,
+        selectedExternalDiffTool: diffTool,
+      })
+      this.props.onUseCustomDiffToolChanged(false)
+      this.props.onSelectedDiffToolChanged(diffTool)
+    }
+  }
+
+  private renderExternalDiffTool() {
+    const options = this.props.availableDiffTools
+    const { selectedExternalDiffTool, useCustomDiffTool } = this.state
+    const label = __DARWIN__ ? 'External Diff Tool' : 'External diff tool'
+
+    if (!enableCustomIntegration() && options.length === 0) {
+      return (
+        <div className="select-component no-options-found">
+          <label>{label}</label>
+          <span>
+            No diff tools found.{' '}
+            <LinkButton uri={suggestedExternalDiffTool.url}>
+              Install {suggestedExternalDiffTool.name}?
+            </LinkButton>
+          </span>
+        </div>
+      )
+    }
+
+    return (
+      <Select
+        label={enableCustomIntegration() ? undefined : label}
+        aria-label="External diff tool"
+        value={
+          useCustomDiffTool
+            ? CustomIntegrationValue
+            : selectedExternalDiffTool ?? undefined
+        }
+        onChange={this.onSelectedDiffToolChanged}
+      >
+        {options.map(n => (
+          <option key={n} value={n}>
+            {n}
+          </option>
+        ))}
+        {enableCustomIntegration() && (
+          <option key={CustomIntegrationValue} value={CustomIntegrationValue}>
+            {__DARWIN__
+              ? 'Configure Custom Diff Tool…'
+              : 'Configure custom diff tool…'}
+          </option>
+        )}
+      </Select>
+    )
+  }
+
+  private renderNoExternalDiffToolHint() {
+    const options = this.props.availableDiffTools
+    if (options.length > 0) {
+      return null
+    }
+
+    return (
+      <Row>
+        <div className="no-options-found">
+          <span>
+            No other diff tools found.{' '}
+            <LinkButton uri={suggestedExternalDiffTool.url}>
+              Install {suggestedExternalDiffTool.name}?
+            </LinkButton>
+          </span>
+        </div>
+      </Row>
+    )
+  }
+
+  private renderCustomExternalDiffTool() {
+    return (
+      <Row>
+        <CustomIntegrationForm
+          id="custom-diff-tool"
+          ref={this.customDiffToolFormRef}
+          path={this.state.customDiffTool.path ?? ''}
+          arguments={this.state.customDiffTool.arguments}
+          onPathChanged={this.onCustomDiffToolPathChanged}
+          onArgumentsChanged={this.onCustomDiffToolArgumentsChanged}
+        />
+      </Row>
+    )
+  }
+
+  private onCustomDiffToolPathChanged = (path: string, bundleID?: string) => {
+    const customDiffTool: ICustomIntegration = {
+      path,
+      bundleID,
+      arguments: this.state.customDiffTool.arguments ?? [],
+    }
+
+    this.setState({ customDiffTool })
+    this.props.onCustomDiffToolChanged(customDiffTool)
+  }
+
+  private onCustomDiffToolArgumentsChanged = (args: string) => {
+    const customDiffTool: ICustomIntegration = {
+      path: this.state.customDiffTool.path,
+      bundleID: this.state.customDiffTool.bundleID,
+      arguments: args,
+    }
+
+    this.setState({ customDiffTool })
+    this.props.onCustomDiffToolChanged(customDiffTool)
+  }
+
   public render() {
     if (!enableCustomIntegration()) {
       return (
@@ -358,6 +525,7 @@ export class Integrations extends React.Component<
           <h2>Applications</h2>
           <Row>{this.renderExternalEditor()}</Row>
           <Row>{this.renderSelectedShell()}</Row>
+          <Row>{this.renderExternalDiffTool()}</Row>
         </DialogContent>
       )
     }
@@ -378,6 +546,16 @@ export class Integrations extends React.Component<
           </legend>
           <Row>{this.renderSelectedShell()}</Row>
           {this.state.useCustomShell && this.renderCustomShell()}
+        </fieldset>
+        <fieldset>
+          <legend>
+            <h2>
+              {__DARWIN__ ? 'External Diff Tool' : 'External diff tool'}
+            </h2>
+          </legend>
+          <Row>{this.renderExternalDiffTool()}</Row>
+          {this.state.useCustomDiffTool && this.renderCustomExternalDiffTool()}
+          {this.renderNoExternalDiffToolHint()}
         </fieldset>
       </DialogContent>
     )

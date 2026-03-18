@@ -354,6 +354,18 @@ export interface IAppState {
   /** Info needed to launch a custom shell chosen by the user. */
   readonly customShell: ICustomIntegration | null
 
+  /** The external diff tool to use when comparing files */
+  readonly selectedExternalDiffTool: string | null
+
+  /** A cached entry representing an external diff tool found on the user's machine */
+  readonly resolvedExternalDiffTool: string | null
+
+  /** Whether or not the user wants to use a custom diff tool. */
+  readonly useCustomDiffTool: boolean
+
+  /** Info needed to launch a custom diff tool chosen by the user. */
+  readonly customDiffTool: ICustomIntegration | null
+
   /**
    * Whether or not the CI status popover is visible.
    */

@@ -15,6 +15,7 @@ import {
 import { lookupPreferredEmail } from '../../lib/email'
 import { Shell, getAvailableShells } from '../../lib/shells'
 import { getAvailableEditors } from '../../lib/editors/lookup'
+import { getAvailableDiffTools } from '../../lib/diff-tools/lookup'
 import {
   gitAuthorNameIsValid,
   InvalidGitAuthorNameMessage,
@@ -87,6 +88,9 @@ interface IPreferencesProps {
   readonly customEditor: ICustomIntegration | null
   readonly useCustomShell: boolean
   readonly customShell: ICustomIntegration | null
+  readonly selectedExternalDiffTool: string | null
+  readonly useCustomDiffTool: boolean
+  readonly customDiffTool: ICustomIntegration | null
   readonly repositoryIndicatorsEnabled: boolean
   readonly onEditGlobalGitConfig: () => void
   readonly underlineLinks: boolean
@@ -125,6 +129,10 @@ interface IPreferencesState {
   readonly selectedExternalEditor: string | null
   readonly availableShells: ReadonlyArray<Shell>
   readonly selectedShell: Shell
+  readonly availableDiffTools: ReadonlyArray<string>
+  readonly selectedExternalDiffTool: string | null
+  readonly useCustomDiffTool: boolean
+  readonly customDiffTool: ICustomIntegration
 
   /**
    * If unable to save Git configuration values (name, email)
@@ -185,6 +193,10 @@ export class Preferences extends React.Component<
       customEditor: this.props.customEditor ?? DefaultCustomIntegration,
       useCustomShell: this.props.useCustomShell,
       customShell: this.props.customShell ?? DefaultCustomIntegration,
+      availableDiffTools: [],
+      selectedExternalDiffTool: this.props.selectedExternalDiffTool,
+      useCustomDiffTool: this.props.useCustomDiffTool,
+      customDiffTool: this.props.customDiffTool ?? DefaultCustomIntegration,
       useWindowsOpenSSH: false,
       showCommitLengthWarning: false,
       notificationsEnabled: true,
@@ -242,13 +254,15 @@ export class Preferences extends React.Component<
     committerName = committerName || ''
     committerEmail = committerEmail || ''
 
-    const [editors, shells] = await Promise.all([
+    const [editors, shells, diffTools] = await Promise.all([
       getAvailableEditors(),
       getAvailableShells(),
+      getAvailableDiffTools(),
     ])
 
     const availableEditors = editors.map(e => e.editor) ?? null
     const availableShells = shells.map(e => e.shell) ?? null
+    const availableDiffTools = diffTools.map(e => e.editor) ?? null
 
     this.setState({
       committerName,
@@ -280,6 +294,9 @@ export class Preferences extends React.Component<
       customEditor: this.props.customEditor ?? DefaultCustomIntegration,
       useCustomShell: this.props.useCustomShell,
       customShell: this.props.customShell ?? DefaultCustomIntegration,
+      availableDiffTools,
+      useCustomDiffTool: this.props.useCustomDiffTool,
+      customDiffTool: this.props.customDiffTool ?? DefaultCustomIntegration,
       isLoadingGitConfig: false,
     })
   }
@@ -458,6 +475,13 @@ export class Preferences extends React.Component<
             onCustomEditorChanged={this.onCustomEditorChanged}
             onUseCustomShellChanged={this.onUseCustomShellChanged}
             onCustomShellChanged={this.onCustomShellChanged}
+            availableDiffTools={this.state.availableDiffTools}
+            selectedExternalDiffTool={this.state.selectedExternalDiffTool}
+            useCustomDiffTool={this.state.useCustomDiffTool}
+            customDiffTool={this.state.customDiffTool}
+            onSelectedDiffToolChanged={this.onSelectedDiffToolChanged}
+            onUseCustomDiffToolChanged={this.onUseCustomDiffToolChanged}
+            onCustomDiffToolChanged={this.onCustomDiffToolChanged}
           />
         )
         break
@@ -733,6 +757,18 @@ export class Preferences extends React.Component<
     this.setState({ customShell })
   }
 
+  private onSelectedDiffToolChanged = (diffTool: string) => {
+    this.setState({ selectedExternalDiffTool: diffTool })
+  }
+
+  private onUseCustomDiffToolChanged = (useCustomDiffTool: boolean) => {
+    this.setState({ useCustomDiffTool })
+  }
+
+  private onCustomDiffToolChanged = (customDiffTool: ICustomIntegration) => {
+    this.setState({ customDiffTool })
+  }
+
   private onSelectedThemeChanged = (theme: ApplicationTheme) => {
     this.props.dispatcher.setSelectedTheme(theme)
   }
@@ -857,6 +893,23 @@ export class Preferences extends React.Component<
     dispatcher.setUseCustomShell(useCustomShell && isValidCustomShell)
     if (isValidCustomShell) {
       dispatcher.setCustomShell(customShell)
+    }
+
+    const { useCustomDiffTool, customDiffTool } = this.state
+
+    const isValidCustomDiffTool =
+      customDiffTool && (await isValidCustomIntegration(customDiffTool))
+    dispatcher.setUseCustomDiffTool(
+      useCustomDiffTool && isValidCustomDiffTool
+    )
+    if (isValidCustomDiffTool) {
+      dispatcher.setCustomDiffTool(customDiffTool)
+    }
+
+    if (this.state.selectedExternalDiffTool) {
+      await dispatcher.setExternalDiffTool(
+        this.state.selectedExternalDiffTool
+      )
     }
 
     if (

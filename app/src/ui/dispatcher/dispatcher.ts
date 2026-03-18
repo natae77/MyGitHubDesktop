@@ -124,6 +124,7 @@ import { UnreachableCommitsTab } from '../history/unreachable-commits-dialog'
 import { sendNonFatalException } from '../../lib/helpers/non-fatal-exception'
 import { SignInResult } from '../../lib/stores/sign-in-store'
 import { ICustomIntegration } from '../../lib/custom-integration'
+import { DiffToolContext } from '../../lib/diff-tools'
 import { isAbsolute } from 'path'
 import { CLIAction } from '../../lib/cli-action'
 import { BypassReasonType } from '../secret-scanning/bypass-push-protection-dialog'
@@ -1478,6 +1479,18 @@ export class Dispatcher {
    */
   public async openInExternalEditor(fullPath: string): Promise<void> {
     return this.appStore._openInExternalEditor(fullPath)
+  }
+
+  public async openInExternalDiffTool(
+    repositoryPath: string,
+    filePath: string,
+    context: DiffToolContext
+  ): Promise<void> {
+    return this.appStore._openInExternalDiffTool(
+      repositoryPath,
+      filePath,
+      context
+    )
   }
 
   /**
@@ -3291,6 +3304,18 @@ export class Dispatcher {
   /** Set the custom shell info */
   public setCustomShell(customShell: ICustomIntegration) {
     this.appStore._setCustomShell(customShell)
+  }
+
+  public setExternalDiffTool(diffTool: string): Promise<void> {
+    return this.appStore._setExternalDiffTool(diffTool)
+  }
+
+  public setUseCustomDiffTool(useCustomDiffTool: boolean) {
+    this.appStore._setUseCustomDiffTool(useCustomDiffTool)
+  }
+
+  public setCustomDiffTool(customDiffTool: ICustomIntegration) {
+    this.appStore._setCustomDiffTool(customDiffTool)
   }
 
   public async reorderCommits(

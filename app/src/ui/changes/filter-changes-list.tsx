@@ -2,6 +2,7 @@ import * as React from 'react'
 import * as Path from 'path'
 
 import { Dispatcher } from '../dispatcher'
+import { DiffToolContext } from '../../lib/diff-tools'
 import { IMenuItem } from '../../lib/menu-item'
 import { revealInFileManager } from '../../lib/app-shell'
 import { encodePathAsUrl } from '../../lib/path'
@@ -24,6 +25,7 @@ import { CommitOptions, IFileListFilterState } from '../../lib/app-state'
 import {
   isSafeFileExtension,
   DefaultEditorLabel,
+  DefaultDiffToolLabel,
   CopyFilePathLabel,
   RevealInFileManagerLabel,
   OpenWithDefaultProgramLabel,
@@ -200,6 +202,17 @@ interface IFilterChangesListProps {
 
   /** The name of the currently selected external editor */
   readonly externalEditorLabel?: string
+
+  /** The name of the currently selected external diff tool */
+  readonly externalDiffToolLabel?: string
+
+  /**
+   * Callback to open a file diff using the configured external diff tool
+   */
+  readonly onOpenInExternalDiffTool: (
+    filePath: string,
+    context: DiffToolContext
+  ) => void
 
   readonly stashEntry: IStashEntry | null
 
@@ -678,6 +691,27 @@ export class FilterChangesList extends React.Component<
     }
   }
 
+  private getOpenInExternalDiffToolMenuItem = (
+    file: WorkingDirectoryFileChange,
+    enabled: boolean
+  ): IMenuItem => {
+    const { externalDiffToolLabel } = this.props
+
+    const openInExternalDiffTool = externalDiffToolLabel
+      ? `Open in ${externalDiffToolLabel}`
+      : DefaultDiffToolLabel
+
+    return {
+      label: openInExternalDiffTool,
+      action: () => {
+        this.props.onOpenInExternalDiffTool(file.path, {
+          kind: 'working-directory',
+        })
+      },
+      enabled,
+    }
+  }
+
   private getDefaultContextMenu(
     file: WorkingDirectoryFileChange
   ): ReadonlyArray<IMenuItem> {
@@ -816,6 +850,7 @@ export class FilterChangesList extends React.Component<
       { type: 'separator' },
       this.getRevealInFileManagerMenuItem(file),
       this.getOpenInExternalEditorMenuItem(file, enabled),
+      this.getOpenInExternalDiffToolMenuItem(file, true),
       {
         label: OpenWithDefaultProgramLabel,
         action: () => this.props.onOpenItem(path),
@@ -850,6 +885,7 @@ export class FilterChangesList extends React.Component<
       { type: 'separator' },
       this.getRevealInFileManagerMenuItem(file),
       this.getOpenInExternalEditorMenuItem(file, enabled),
+      this.getOpenInExternalDiffToolMenuItem(file, true),
       {
         label: OpenWithDefaultProgramLabel,
         action: () => this.props.onOpenItem(path),
