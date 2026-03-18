@@ -41,7 +41,6 @@ import { Account, isDotComAccount } from '../models/account'
 import { TipState } from '../models/tip'
 import { CloneRepositoryTab } from '../models/clone-repository-tab'
 import { CloningRepository } from '../models/cloning-repository'
-import { WorkingDirectoryFileChange } from '../models/status'
 
 import { TitleBar, ZoomInfo, FullScreenInfo } from './window'
 
@@ -804,20 +803,18 @@ export class App extends React.Component<IAppProps, IAppState> {
       return
     }
 
-    const selectedFiles = selection.selectedFileIDs
-      .map(id => workingDirectory.findFileWithID(id))
-      .filter(
-        (f): f is WorkingDirectoryFileChange => f !== null
-      )
+    const checkedFiles = workingDirectory.files.filter(f =>
+      f.isIncludedInCommit()
+    )
 
-    if (selectedFiles.length === 0) {
+    if (checkedFiles.length === 0) {
       return
     }
 
     this.props.dispatcher.createStashForCurrentBranch(
       repository,
       true,
-      selectedFiles
+      checkedFiles
     )
   }
 

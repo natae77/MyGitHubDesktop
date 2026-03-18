@@ -5,8 +5,11 @@
 현재 GitHub Desktop의 Stash 기능은 **모든 변경 파일을 한꺼번에** stash하는 방식만 지원합니다.
 특정 파일만 골라서 stash하고 싶은 경우가 많은데, 이 기능이 없어 불편합니다.
 `git stash push -- <pathspec>` 명령을 활용하면 선택적 stash가 가능하므로,
-Changes 탭의 파일 컨텍스트 메뉴에 "Stash Selected Files" 항목을 추가하고,
+Changes 탭의 헤더 컨텍스트 메뉴에 "Stash Selected Files" 항목을 추가하고,
 기존 "Stash All Changes" 메뉴는 제거합니다 (선택적 stash로 대체).
+
+**"Selected"의 의미:** 체크박스(✓)가 체크된 파일을 의미합니다.
+파일 리스트의 하이라이트 선택(selectedFileIDs)이 아닌, 커밋에 포함하려고 체크한 파일(`isIncludedInCommit()`)을 기준으로 stash합니다.
 
 ## 구현 범위
 
@@ -82,75 +85,125 @@ private async createStashEntry(
 ### 4. UI: 컨텍스트 메뉴에 "Stash Selected Files" 추가
 **파일:** `app/src/ui/changes/filter-changes-list.tsx`
 
-**개별 파일 컨텍스트 메뉴** (`getDefaultContextMenu`, line 696):
-- 선택된 파일 목록(selectedFiles)을 활용하여 "Stash N Selected File(s)" 메뉴 항목 추가
-- separator 뒤, Discard Changes 근처에 배치
+**헤더 컨텍스트 메뉴** (`onContextMenu`):
+- "Stash All Changes" 메뉴 항목을 제거하고, "Stash Selected Files"로 대체
+- "Discard All Changes…" 바로 아래에 배치
+- 체크박스가 체크된 파일이 있고, 브랜치 위에 있고, 충돌이 없을 때만 활성화
+- 기존 stash가 있으면 `…` 접미사로 덮어쓰기 확인 다이얼로그 안내
 
 ```typescript
-// getDefaultContextMenu 내부에 추가
-{
-  label: selectedFiles.length === 1
-    ? (__DARWIN__ ? 'Stash Selected File' : 'Stash selected file')
-    : (__DARWIN__ ? `Stash ${selectedFiles.length} Selected Files` : `Stash ${selectedFiles.length} selected files`),
-  action: () => this.onStashSelectedFiles(selectedFiles),
-  enabled: this.props.branch !== null && !hasConflicts,
-}
+// onContextMenu 내부
+const checkedFiles = this.getCheckedFiles()
+const hasCheckedFiles = checkedFiles.length > 0
+
+const stashLabel = hasStash
+  ? (__DARWIN__ ? 'Stash Selected Files…' : 'Stash selected files…')
+  : (__DARWIN__ ? 'Stash Selected Files' : 'Stash selected files')
+
+const items: IMenuItem[] = [
+  {
+    label: __DARWIN__ ? 'Discard All Changes…' : 'Discard all changes…',
+    action: this.onDiscardAllChanges,
+    enabled: hasLocalChanges,
+  },
+  {
+    label: stashLabel,
+    action: () => this.onStashSelectedFiles(checkedFiles),
+    enabled: hasCheckedFiles && this.props.branch !== null && !hasConflicts,
+  },
+]
 ```
 
-**헤더 컨텍스트 메뉴** (`onContextMenu`, line 553):
-- "Stash All Changes" 메뉴 항목 제거 (선택적 stash로 대체)
-- 메뉴바의 `stash-all-changes` 명령과 단축키(Ctrl+Shift+S)도 제거
+**개별 파일 컨텍스트 메뉴** (`getDefaultContextMenu`):
+- stash 메뉴 항목 없음 (파일 우클릭에서는 stash 불필요)
 
-**제거 대상 파일 추가:**
-- `app/src/main-process/menu/build-default-menu.ts` - stash-all-changes 메뉴 항목 제거
-- `app/src/models/menu-ids.ts` - stash-all-changes ID 제거
-- `app/src/ui/app.tsx` - stashAllChanges 핸들러 제거
-- `app/src/lib/menu-update.ts` - stash 메뉴 상태 업데이트 제거
+**메뉴바 변경:**
+- `stash-all-changes` → `stash-selected-files`로 ID/이벤트/라벨 변경 (단축키 Ctrl+Shift+S 유지)
+- `app/src/main-process/menu/build-default-menu.ts` - stash-selected-files로 변경
+- `app/src/models/menu-ids.ts` - stash-selected-files ID로 변경
+- `app/src/main-process/menu/menu-event.ts` - stash-selected-files 이벤트로 변경
+- `app/src/ui/app.tsx` - stashSelectedFiles 핸들러로 변경 (체크된 파일 기반)
+- `app/src/lib/menu-update.ts` - 체크된 파일(`isIncludedInCommit()`) 유무 기반으로 활성화 상태 업데이트
 
 ### 5. 핸들러 메서드 추가
 **파일:** `app/src/ui/changes/filter-changes-list.tsx`
 
 ```typescript
+// 체크박스가 체크된 파일 목록을 반환 (isIncludedInCommit 기반)
+private getCheckedFiles = (): ReadonlyArray<WorkingDirectoryFileChange> => {
+  return this.props.workingDirectory.files.filter(f =>
+    f.isIncludedInCommit()
+  )
+}
+
+// 체크된 파일들을 stash (덮어쓰기 확인은 dispatcher 체인에서 처리)
 private onStashSelectedFiles = (files: ReadonlyArray<WorkingDirectoryFileChange>) => {
-  const hasStash = this.props.stashEntry !== null
-  if (hasStash) {
-    // 기존 stash 덮어쓰기 확인 팝업 표시
-    this.props.dispatcher.showPopup({
-      type: PopupType.ConfirmOverwriteStash,
-      branchToCheckout: null,
-      repository: this.props.repository,
-    })
-    return
-  }
-  this.props.dispatcher.createStashForSelectedFiles(
+  this.props.dispatcher.createStashForCurrentBranch(
     this.props.repository,
+    true,  // showConfirmationDialog
     files
   )
 }
 ```
 
+**파일:** `app/src/ui/app.tsx` (메뉴바 핸들러)
+
+```typescript
+private stashSelectedFiles() {
+  // ... repository/state 체크 ...
+  const checkedFiles = workingDirectory.files.filter(f =>
+    f.isIncludedInCommit()
+  )
+  if (checkedFiles.length === 0) return
+  this.props.dispatcher.createStashForCurrentBranch(repository, true, checkedFiles)
+}
+```
+
+**파일:** `app/src/lib/menu-update.ts` (메뉴 활성화 상태)
+
+```typescript
+hasCheckedFiles =
+  changesState.selection.kind === ChangesSelectionKind.WorkingDirectory &&
+  workingDirectory.files.some(f => f.isIncludedInCommit())
+```
+
+**참고:** 기존 `createStashForCurrentBranch`에 `files` 파라미터를 추가하는 방식으로 구현.
+별도의 `createStashForSelectedFiles` 메서드를 만들지 않고 기존 메서드를 확장함.
+덮어쓰기 확인은 `_createStashForCurrentBranch` 내부에서 처리되며,
+`ConfirmOverwriteStash` 팝업에 `filesToStash`를 전달하여 확인 후에도 체크된 파일만 stash됨.
+
+**"Selected"의 의미:** UI 라벨은 사용자 친화적으로 "Selected Files"를 유지하되,
+내부적으로는 체크박스 상태(`isIncludedInCommit()`)를 기준으로 동작합니다.
+하이라이트 선택(`selectedFileIDs`)은 사용하지 않습니다.
+
 ## 수정 파일 목록
 
 | 파일 | 변경 내용 |
 |------|-----------|
-| `app/src/lib/git/stash.ts` | `createDesktopStashEntry`에 선택적 파일 파라미터 추가 |
-| `app/src/lib/stores/app-store.ts` | `_createStashForSelectedFiles` 메서드 + `createStashEntry` 수정 |
-| `app/src/ui/dispatcher/dispatcher.ts` | `createStashForSelectedFiles` 메서드 추가 |
-| `app/src/ui/changes/filter-changes-list.tsx` | 컨텍스트 메뉴 항목 + 핸들러 추가, "Stash All Changes" 제거 |
-| `app/src/ui/app.tsx` | `stashAllChanges` 핸들러 제거 |
-| `app/src/main-process/menu/build-default-menu.ts` | stash-all-changes 메뉴 항목 제거 |
-| `app/src/models/menu-ids.ts` | stash-all-changes ID 제거 |
-| `app/src/lib/menu-update.ts` | stash 메뉴 상태 업데이트 제거 |
+| `app/src/lib/git/stash.ts` | `createDesktopStashEntry`에 `filesToStash` 선택적 파라미터 추가, `git stash push -- <paths>` 지원 |
+| `app/src/lib/stores/app-store.ts` | `_createStashForCurrentBranch`, `createStashAndDropPreviousEntry`, `createStashEntry`에 `files` 파라미터 전달 체인 추가 |
+| `app/src/ui/dispatcher/dispatcher.ts` | `createStashForCurrentBranch`에 `files` 파라미터 추가 |
+| `app/src/ui/changes/filter-changes-list.tsx` | 헤더 컨텍스트 메뉴에 "Stash Selected Files" 추가, `getCheckedFiles`/`onStashSelectedFiles` 핸들러 추가, 파일 우클릭 메뉴에서는 stash 없음 |
+| `app/src/ui/app.tsx` | `stashAllChanges` → `stashSelectedFiles`로 변경, 체크된 파일(`isIncludedInCommit`) 기반 stash 처리 |
+| `app/src/main-process/menu/build-default-menu.ts` | `stash-all-changes` → `stash-selected-files`로 변경 |
+| `app/src/main-process/menu/menu-event.ts` | `stash-all-changes` → `stash-selected-files`로 변경 |
+| `app/src/models/menu-ids.ts` | `stash-all-changes` → `stash-selected-files`로 변경 |
+| `app/src/models/menu-labels.ts` | `askForConfirmationWhenStashingAllChanges` 속성 제거 |
+| `app/src/models/popup.ts` | `ConfirmOverwriteStash`에 `filesToStash` 속성 추가 |
+| `app/src/lib/menu-update.ts` | `hasCheckedFiles` (`isIncludedInCommit`) 기반으로 `stash-selected-files` 활성화 상태 업데이트 |
+| `app/src/ui/stash-changes/overwrite-stashed-changes-dialog.tsx` | `filesToStash` prop 추가, 덮어쓰기 확인 시 선택된 파일만 stash |
 
 ## 검증 방법
 
 1. **빌드 확인:** `yarn build:dev` 성공 확인
 2. **기능 테스트:**
-   - Changes 탭에서 파일 1개 우클릭 > "Stash Selected File" 클릭 → 해당 파일만 stash됨
-   - 여러 파일 선택 후 우클릭 > "Stash N Selected Files" 클릭 → 선택된 파일만 stash됨
-   - stash 후 나머지 파일은 working directory에 그대로 남아있음
-   - 기존 stash가 있을 때 덮어쓰기 확인 다이얼로그 표시
+   - Changes 탭에서 파일 체크박스를 선택 후 Changed Files 영역 우클릭 > "Stash Selected Files" 클릭 → 체크된 파일만 stash됨
+   - stash 후 체크하지 않은 파일은 working directory에 그대로 남아있음
+   - 기존 stash가 있을 때 "Stash Selected Files…" (말줄임표)으로 표시되고 덮어쓰기 확인 다이얼로그 표시
+   - 체크된 파일이 없으면 메뉴가 비활성화됨
+   - 개별 파일 우클릭 메뉴에는 stash 항목이 없음
+   - 메뉴바 Repository > "Stash Selected Files" (Ctrl+Shift+S) 정상 동작
 3. **기존 기능 회귀 테스트:**
    - 브랜치 전환 시 자동 stash 여전히 정상 동작
-   - "Stash All Changes" 메뉴 및 단축키가 완전히 제거되었는지 확인
+   - "Stash All Changes" 메뉴가 "Stash Selected Files"로 완전히 대체되었는지 확인
 4. **단위 테스트:** `yarn test:unit` 통과 확인

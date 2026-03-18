@@ -486,6 +486,12 @@ export class FilterChangesList extends React.Component<
     )
   }
 
+  private getCheckedFiles = (): ReadonlyArray<WorkingDirectoryFileChange> => {
+    return this.props.workingDirectory.files.filter(f =>
+      f.isIncludedInCommit()
+    )
+  }
+
   private onStashSelectedFiles = (
     files: ReadonlyArray<WorkingDirectoryFileChange>
   ) => {
@@ -552,12 +558,35 @@ export class FilterChangesList extends React.Component<
     }
 
     const hasLocalChanges = this.props.workingDirectory.files.length > 0
+    const hasStash = this.props.stashEntry !== null
+    const hasConflicts =
+      this.props.conflictState !== null ||
+      hasConflictedFiles(this.props.workingDirectory)
+
+    const checkedFiles = this.getCheckedFiles()
+    const hasCheckedFiles = checkedFiles.length > 0
+
+    const stashLabel = hasStash
+      ? __DARWIN__
+        ? 'Stash Selected Files…'
+        : 'Stash selected files…'
+      : __DARWIN__
+        ? 'Stash Selected Files'
+        : 'Stash selected files'
 
     const items: IMenuItem[] = [
       {
         label: __DARWIN__ ? 'Discard All Changes…' : 'Discard all changes…',
         action: this.onDiscardAllChanges,
         enabled: hasLocalChanges,
+      },
+      {
+        label: stashLabel,
+        action: () => this.onStashSelectedFiles(checkedFiles),
+        enabled:
+          hasCheckedFiles &&
+          this.props.branch !== null &&
+          !hasConflicts,
       },
     ]
 
@@ -686,26 +715,8 @@ export class FilterChangesList extends React.Component<
       addItemToArray(id)
     }
 
-    const hasConflicts =
-      this.props.conflictState !== null ||
-      hasConflictedFiles(this.props.workingDirectory)
-
-    const stashLabel =
-      selectedFiles.length === 1
-        ? __DARWIN__
-          ? 'Stash Selected File'
-          : 'Stash selected file'
-        : __DARWIN__
-          ? `Stash ${selectedFiles.length} Selected Files`
-          : `Stash ${selectedFiles.length} selected files`
-
     const items: IMenuItem[] = [
       this.getDiscardChangesMenuItem(paths),
-      {
-        label: stashLabel,
-        action: () => this.onStashSelectedFiles(selectedFiles),
-        enabled: this.props.branch !== null && !hasConflicts,
-      },
       { type: 'separator' },
     ]
     if (paths.length === 1) {

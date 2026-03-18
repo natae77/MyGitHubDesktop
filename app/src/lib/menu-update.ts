@@ -167,7 +167,7 @@ function getRepositoryMenuBuilder(state: IAppState): MenuStateBuilder {
   let onBranch = false
   let onDetachedHead = false
   let hasChangedFiles = false
-  let hasSelectedFiles = false
+  let hasCheckedFiles = false
   let hasConflicts = false
   let hasPublishedBranch = false
   let networkActionInProgress = false
@@ -233,9 +233,9 @@ function getRepositoryMenuBuilder(state: IAppState): MenuStateBuilder {
       changesState.conflictState !== null ||
       hasConflictedFiles(workingDirectory)
     hasChangedFiles = workingDirectory.files.length > 0
-    hasSelectedFiles =
+    hasCheckedFiles =
       changesState.selection.kind === ChangesSelectionKind.WorkingDirectory &&
-      changesState.selection.selectedFileIDs.length > 0
+      workingDirectory.files.some(f => f.isIncludedInCommit())
   }
 
   // These are IDs for menu items that are entirely _and only_
@@ -333,7 +333,7 @@ function getRepositoryMenuBuilder(state: IAppState): MenuStateBuilder {
 
     menuStateBuilder.setEnabled(
       'stash-selected-files',
-      hasSelectedFiles && onBranch && !rebaseInProgress && !hasConflicts
+      hasCheckedFiles && onBranch && !rebaseInProgress && !hasConflicts
     )
 
     menuStateBuilder.setEnabled('compare-to-branch', !onDetachedHead)
