@@ -579,24 +579,27 @@ export class FilterChangesList extends React.Component<
     const checkedFiles = this.getCheckedFiles()
     const hasCheckedFiles = checkedFiles.length > 0
 
-    const stashLabel = hasStash
+    const n = checkedFiles.length
+    const discardCheckedLabel = __DARWIN__
+      ? `Discard ${n} Checked Files…`
+      : `Discard ${n} checked files…`
+
+    const stashCheckedLabel = hasStash
       ? __DARWIN__
-        ? 'Stash Selected Files…'
-        : 'Stash selected files…'
+        ? `Stash ${n} Checked Files…`
+        : `Stash ${n} checked files…`
       : __DARWIN__
-        ? 'Stash Selected Files'
-        : 'Stash selected files'
+        ? `Stash ${n} Checked Files`
+        : `Stash ${n} checked files`
 
     const items: IMenuItem[] = [
       {
-        label: __DARWIN__
-          ? 'Discard Selected Files…'
-          : 'Discard selected files…',
+        label: discardCheckedLabel,
         action: this.onDiscardCheckedFiles,
         enabled: hasCheckedFiles,
       },
       {
-        label: stashLabel,
+        label: stashCheckedLabel,
         action: () => this.onStashSelectedFiles(checkedFiles),
         enabled:
           hasCheckedFiles &&
@@ -753,8 +756,45 @@ export class FilterChangesList extends React.Component<
 
     const items: IMenuItem[] = [
       this.getDiscardChangesMenuItem(paths),
-      { type: 'separator' },
     ]
+
+    const hasStash = this.props.stashEntry !== null
+    const hasConflicts =
+      this.props.conflictState !== null ||
+      hasConflictedFiles(this.props.workingDirectory)
+
+    if (paths.length === 1) {
+      const stashLabel = hasStash
+        ? __DARWIN__
+          ? 'Stash Changes…'
+          : 'Stash changes…'
+        : __DARWIN__
+          ? 'Stash Changes'
+          : 'Stash changes'
+
+      items.push({
+        label: stashLabel,
+        action: () => this.onStashSelectedFiles([file]),
+        enabled: this.props.branch !== null && !hasConflicts,
+      })
+    } else {
+      const stashSelectedLabel = hasStash
+        ? __DARWIN__
+          ? `Stash ${paths.length} Selected Files…`
+          : `Stash ${paths.length} selected files…`
+        : __DARWIN__
+          ? `Stash ${paths.length} Selected Files`
+          : `Stash ${paths.length} selected files`
+
+      items.push({
+        label: stashSelectedLabel,
+        action: () => this.onStashSelectedFiles(selectedFiles),
+        enabled: this.props.branch !== null && !hasConflicts,
+      })
+    }
+
+    items.push({ type: 'separator' })
+
     if (paths.length === 1) {
       const enabled = Path.basename(path) !== GitIgnoreFileName
       items.push({

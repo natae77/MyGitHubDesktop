@@ -397,15 +397,15 @@ export function buildDefaultMenu({
     },
     separator,
     {
-      label: __DARWIN__ ? 'Discard Selected Files…' : 'Discard selected files…',
+      label: __DARWIN__ ? 'Discard Checked Files…' : 'Discard checked files…',
       id: 'discard-checked-files',
       accelerator: 'CmdOrCtrl+Shift+Backspace',
       click: emit('discard-checked-files'),
     },
     {
       label: __DARWIN__
-        ? 'Stash Selected Files'
-        : '&Stash selected files',
+        ? 'Stash Checked Files'
+        : '&Stash checked files',
       id: 'stash-selected-files',
       accelerator: 'CmdOrCtrl+Shift+S',
       click: emit('stash-selected-files'),
