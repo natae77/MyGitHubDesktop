@@ -14,30 +14,25 @@ Changes 탭의 헤더 컨텍스트 메뉴에 "Stash Selected Files" 항목을 �
 ## 구현 범위
 
 ### 1. Git 레이어: `createDesktopStashEntry`에 파일 경로 필터 추가
-**파일:** `app/src/lib/git/stash.ts` (line 143)
+**파일:** `app/src/lib/git/stash.ts` (line 142)
 
-- `createDesktopStashEntry` 함수에 선택적 `files` 파라미터 추가
-- `files`가 전달되면 `git stash push -m <message> -- <paths...>` 형태로 실행
-- untracked 파일 처리: 선택된 파일 중 untracked 파일만 사전 staging
+- `createDesktopStashEntry` 함수에 선택적 `filesToStash` 파라미터 추가
+- `filesToStash`가 전달되면 `git stash push -u -m <message> -- <paths...>` 형태로 실행
+- **untracked 파일 처리:** `-u` (--include-untracked) 플래그를 사용하여 git이 네이티브하게 untracked 파일을 stash에 포함.
+  이전 방식(untracked 파일을 사전 staging)은 pop 시 untracked 파일이 staged 상태로 복원되는 버그가 있었음.
+  `-u` 플래그를 사용하면 pop 시 untracked 파일이 원래 상태(unstaged/untracked)로 정상 복원됨.
+- `untrackedFilesToStage` 파라미터는 더 이상 불필요하여 제거됨
 
 ```typescript
 export async function createDesktopStashEntry(
   repository: Repository,
   branch: Branch | string,
-  untrackedFilesToStage: ReadonlyArray<WorkingDirectoryFileChange>,
-  filesToStash?: ReadonlyArray<WorkingDirectoryFileChange>  // 새 파라미터
+  filesToStash?: ReadonlyArray<WorkingDirectoryFileChange>
 ): Promise<boolean> {
-  // filesToStash가 있으면 해당 파일의 untracked만 staging
-  const targetUntracked = filesToStash
-    ? untrackedFilesToStage.filter(f => filesToStash.some(s => s.path === f.path))
-    : untrackedFilesToStage
-
-  const fullySelectedUntrackedFiles = targetUntracked.map(x => x.withIncludeAll(true))
-  await stageFiles(repository, fullySelectedUntrackedFiles)
-
   const branchName = typeof branch === 'string' ? branch : branch.name
   const message = createDesktopStashMessage(branchName)
-  const args = ['stash', 'push', '-m', message]
+  // -u로 untracked 파일을 네이티브 처리 (pop 시 원래 상태 유지)
+  const args = ['stash', 'push', '-u', '-m', message]
 
   // 선택적 stash: pathspec 추가
   if (filesToStash) {
@@ -68,12 +63,11 @@ public async _createStashForSelectedFiles(
 private async createStashEntry(
   repository: Repository,
   branch: Branch,
-  files?: ReadonlyArray<WorkingDirectoryFileChange>  // 새 파라미터
+  files?: ReadonlyArray<WorkingDirectoryFileChange>
 ) {
-  const { changesState } = this.repositoryStateCache.get(repository)
-  const { workingDirectory } = changesState
-  const untrackedFiles = getUntrackedFiles(workingDirectory)
-  return createDesktopStashEntry(repository, branch, untrackedFiles, files)
+  // -u 플래그로 untracked 파일을 네이티브 처리하므로
+  // getUntrackedFiles() 호출이 불필요해짐
+  return createDesktopStashEntry(repository, branch, files)
 }
 ```
 
@@ -180,8 +174,8 @@ hasCheckedFiles =
 
 | 파일 | 변경 내용 |
 |------|-----------|
-| `app/src/lib/git/stash.ts` | `createDesktopStashEntry`에 `filesToStash` 선택적 파라미터 추가, `git stash push -- <paths>` 지원 |
-| `app/src/lib/stores/app-store.ts` | `_createStashForCurrentBranch`, `createStashAndDropPreviousEntry`, `createStashEntry`에 `files` 파라미터 전달 체인 추가 |
+| `app/src/lib/git/stash.ts` | `createDesktopStashEntry`에 `filesToStash` 선택적 파라미터 추가, `-u` 플래그로 untracked 파일 네이티브 처리 (기존 `untrackedFilesToStage` 파라미터 및 사전 staging 로직 제거), `git stash push -u -- <paths>` 지원 |
+| `app/src/lib/stores/app-store.ts` | `_createStashForCurrentBranch`, `createStashAndDropPreviousEntry`, `createStashEntry`에 `files` 파라미터 전달 체인 추가. `getUntrackedFiles()` 호출 제거 |
 | `app/src/ui/dispatcher/dispatcher.ts` | `createStashForCurrentBranch`에 `files` 파라미터 추가 |
 | `app/src/ui/changes/filter-changes-list.tsx` | 헤더 컨텍스트 메뉴에 "Stash Selected Files" 추가, `getCheckedFiles`/`onStashSelectedFiles` 핸들러 추가, 파일 우클릭 메뉴에서는 stash 없음 |
 | `app/src/ui/app.tsx` | `stashAllChanges` → `stashSelectedFiles`로 변경, 체크된 파일(`isIncludedInCommit`) 기반 stash 처리 |
@@ -196,7 +190,10 @@ hasCheckedFiles =
 ## 검증 방법
 
 1. **빌드 확인:** `yarn build:dev` 성공 확인
-2. **기능 테스트:**
+2. **Stash/Restore 상태 보존 테스트:**
+   - 수정된 파일(tracked) + 새 파일(untracked)을 함께 stash → restore 후 새 파일이 untracked(unstaged) 상태로 복원되는지 확인
+   - `-u` 플래그로 인해 `git stash pop` 시 원래 상태가 그대로 유지되어야 함
+3. **기능 테스트:**
    - Changes 탭에서 파일 체크박스를 선택 후 Changed Files 영역 우클릭 > "Stash Selected Files" 클릭 → 체크된 파일만 stash됨
    - stash 후 체크하지 않은 파일은 working directory에 그대로 남아있음
    - 기존 stash가 있을 때 "Stash Selected Files…" (말줄임표)으로 표시되고 덮어쓰기 확인 다이얼로그 표시

@@ -71,7 +71,7 @@ describe('git/stash', () => {
       const repository = await setup(t)
       await appendFile(join(repository.path, 'README.md'), 'just testing stuff')
 
-      await createDesktopStashEntry(repository, 'master', [])
+      await createDesktopStashEntry(repository, 'master')
 
       const stash = await getStashes(repository)
       const entries = stash.desktopEntries
@@ -91,11 +91,7 @@ describe('git/stash', () => {
       assert.equal(files.length, 1)
       assert.equal(files[0].status.kind, AppFileStatusKind.Untracked)
 
-      const untrackedFiles = status.workingDirectory.files.filter(
-        f => f.status.kind === AppFileStatusKind.Untracked
-      )
-
-      await createDesktopStashEntry(repository, 'master', untrackedFiles)
+      await createDesktopStashEntry(repository, 'master')
 
       status = await getStatusOrThrow(repository)
       files = status.workingDirectory.files

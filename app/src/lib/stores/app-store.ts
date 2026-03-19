@@ -294,7 +294,6 @@ import {
   isValidTutorialStep,
 } from '../../models/tutorial-step'
 import { OnboardingTutorialAssessor } from './helpers/tutorial-assessor'
-import { getUntrackedFiles } from '../status'
 import { isBranchPushable } from '../helpers/push-control'
 import {
   findAssociatedPullRequest,
@@ -7391,11 +7390,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
     branch: Branch,
     files?: ReadonlyArray<WorkingDirectoryFileChange>
   ) {
-    const { changesState } = this.repositoryStateCache.get(repository)
-    const { workingDirectory } = changesState
-    const untrackedFiles = getUntrackedFiles(workingDirectory)
-
-    return createDesktopStashEntry(repository, branch, untrackedFiles, files)
+    return createDesktopStashEntry(repository, branch, files)
   }
 
   /** This shouldn't be called directly. See `Dispatcher`. */

@@ -11,7 +11,6 @@ import {
   CommittedFileChange,
 } from '../../models/status'
 import { parseRawLogWithNumstat } from './log'
-import { stageFiles } from './update-index'
 import { Branch } from '../../models/branch'
 import { createLogParser } from './git-delimiter-parser'
 import { coerceToString } from './coerce-to-string'
@@ -143,31 +142,19 @@ export function createDesktopStashMessage(branchName: string) {
 export async function createDesktopStashEntry(
   repository: Repository,
   branch: Branch | string,
-  untrackedFilesToStage: ReadonlyArray<WorkingDirectoryFileChange>,
   filesToStash?: ReadonlyArray<WorkingDirectoryFileChange>
 ): Promise<boolean> {
   if (filesToStash !== undefined && filesToStash.length === 0) {
     return false
   }
 
-  // We must ensure that no untracked files are present before stashing
-  // See https://github.com/desktop/desktop/pull/8085
-  // First ensure that all changes in file are selected
-  // (in case the user has not explicitly checked the checkboxes for the untracked files)
-  // When filesToStash is provided, only stage untracked files that are in the selection
-  const targetUntracked = filesToStash
-    ? untrackedFilesToStage.filter(f =>
-        filesToStash.some(s => s.path === f.path)
-      )
-    : untrackedFilesToStage
-  const fullySelectedUntrackedFiles = targetUntracked.map(x =>
-    x.withIncludeAll(true)
-  )
-  await stageFiles(repository, fullySelectedUntrackedFiles)
-
   const branchName = typeof branch === 'string' ? branch : branch.name
   const message = createDesktopStashMessage(branchName)
-  const args = ['stash', 'push', '-m', message]
+  // Use -u (--include-untracked) to natively handle untracked files
+  // so they are restored as untracked (not staged) on stash pop.
+  // Previous approach staged untracked files before stashing, which
+  // caused them to be restored as staged on pop.
+  const args = ['stash', 'push', '-u', '-m', message]
 
   if (filesToStash) {
     args.push('--')
