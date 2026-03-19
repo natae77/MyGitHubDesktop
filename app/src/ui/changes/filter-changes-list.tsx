@@ -492,11 +492,12 @@ export class FilterChangesList extends React.Component<
     )
   }
 
-  private onDiscardAllChanges = () => {
-    this.props.onDiscardChangesFromFiles(
-      this.props.workingDirectory.files,
-      true
-    )
+  private onDiscardCheckedFiles = () => {
+    const checkedFiles = this.getCheckedFiles()
+    if (checkedFiles.length === 0) {
+      return
+    }
+    this.props.onDiscardChangesFromFiles(checkedFiles, false)
   }
 
   private getCheckedFiles = (): ReadonlyArray<WorkingDirectoryFileChange> => {
@@ -570,7 +571,6 @@ export class FilterChangesList extends React.Component<
       return
     }
 
-    const hasLocalChanges = this.props.workingDirectory.files.length > 0
     const hasStash = this.props.stashEntry !== null
     const hasConflicts =
       this.props.conflictState !== null ||
@@ -589,9 +589,11 @@ export class FilterChangesList extends React.Component<
 
     const items: IMenuItem[] = [
       {
-        label: __DARWIN__ ? 'Discard All Changes…' : 'Discard all changes…',
-        action: this.onDiscardAllChanges,
-        enabled: hasLocalChanges,
+        label: __DARWIN__
+          ? 'Discard Selected Files…'
+          : 'Discard selected files…',
+        action: this.onDiscardCheckedFiles,
+        enabled: hasCheckedFiles,
       },
       {
         label: stashLabel,
