@@ -703,7 +703,7 @@ export class FilterChangesList extends React.Component<
     const { externalDiffToolLabel } = this.props
 
     const openInExternalDiffTool = externalDiffToolLabel
-      ? `Open in ${externalDiffToolLabel}`
+      ? `Diff by ${externalDiffToolLabel}`
       : DefaultDiffToolLabel
 
     return {
@@ -754,14 +754,43 @@ export class FilterChangesList extends React.Component<
       addItemToArray(id)
     }
 
-    const items: IMenuItem[] = [
-      this.getDiscardChangesMenuItem(paths),
-    ]
+    const items: IMenuItem[] = []
 
     const hasStash = this.props.stashEntry !== null
     const hasConflicts =
       this.props.conflictState !== null ||
       hasConflictedFiles(this.props.workingDirectory)
+
+    // Copy path items
+    if (paths.length > 1) {
+      items.push(
+        this.getCopySelectedRelativePathsMenuItem(selectedFiles),
+        this.getCopySelectedPathsMenuItem(selectedFiles)
+      )
+    } else {
+      items.push(
+        this.getCopyRelativePathMenuItem(file),
+        this.getCopyPathMenuItem(file)
+      )
+    }
+
+    // Diff tool, Show in Explorer & Open in Terminal
+    items.push(
+      { type: 'separator' },
+      this.getOpenInExternalDiffToolMenuItem(file, true),
+      this.getRevealInFileManagerMenuItem(file),
+      {
+        label: __DARWIN__ ? 'Open in Terminal' : 'Open in terminal',
+        action: () =>
+          this.props.dispatcher.openShell(this.props.repository.path),
+      }
+    )
+
+    // Discard & Stash
+    items.push(
+      { type: 'separator' },
+      this.getDiscardChangesMenuItem(paths),
+    )
 
     if (paths.length === 1) {
       const stashLabel = hasStash
@@ -793,16 +822,52 @@ export class FilterChangesList extends React.Component<
       })
     }
 
+    // Open in editor, Open with default program
+    const enabled = status.kind !== AppFileStatusKind.Deleted
+    items.push(
+      { type: 'separator' },
+      this.getOpenInExternalEditorMenuItem(file, enabled),
+      {
+        label: OpenWithDefaultProgramLabel,
+        action: () => this.props.onOpenItem(path),
+        enabled: enabled && isSafeExtension,
+      }
+    )
+
+    // Include/Exclude selected files (multi-select only)
+    if (paths.length > 1) {
+      items.push(
+        { type: 'separator' },
+        {
+          label: __DARWIN__
+            ? 'Include Selected Files'
+            : 'Include selected files',
+          action: () => {
+            selectedFiles.map(file => this.props.onIncludeChanged(file, true))
+          },
+        },
+        {
+          label: __DARWIN__
+            ? 'Exclude Selected Files'
+            : 'Exclude selected files',
+          action: () => {
+            selectedFiles.map(file => this.props.onIncludeChanged(file, false))
+          },
+        }
+      )
+    }
+
+    // Ignore items (at the bottom)
     items.push({ type: 'separator' })
 
     if (paths.length === 1) {
-      const enabled = Path.basename(path) !== GitIgnoreFileName
+      const ignoreEnabled = Path.basename(path) !== GitIgnoreFileName
       items.push({
         label: __DARWIN__
           ? 'Ignore File (Add to .gitignore)'
           : 'Ignore file (add to .gitignore)',
         action: () => this.props.onIgnoreFile(path),
-        enabled,
+        enabled: ignoreEnabled,
       })
 
       // Even on Windows, the path separator is '/' for git operations so cannot
@@ -824,7 +889,7 @@ export class FilterChangesList extends React.Component<
             ? 'Ignore Folder (Add to .gitignore)'
             : 'Ignore folder (add to .gitignore)',
           submenu,
-          enabled,
+          enabled: ignoreEnabled,
         })
       }
     } else if (paths.length > 1) {
@@ -855,50 +920,6 @@ export class FilterChangesList extends React.Component<
           action: () => this.props.onIgnorePattern(`*${extension}`),
         })
       })
-
-    if (paths.length > 1) {
-      items.push(
-        { type: 'separator' },
-        {
-          label: __DARWIN__
-            ? 'Include Selected Files'
-            : 'Include selected files',
-          action: () => {
-            selectedFiles.map(file => this.props.onIncludeChanged(file, true))
-          },
-        },
-        {
-          label: __DARWIN__
-            ? 'Exclude Selected Files'
-            : 'Exclude selected files',
-          action: () => {
-            selectedFiles.map(file => this.props.onIncludeChanged(file, false))
-          },
-        },
-        { type: 'separator' },
-        this.getCopySelectedPathsMenuItem(selectedFiles),
-        this.getCopySelectedRelativePathsMenuItem(selectedFiles)
-      )
-    } else {
-      items.push(
-        { type: 'separator' },
-        this.getCopyPathMenuItem(file),
-        this.getCopyRelativePathMenuItem(file)
-      )
-    }
-
-    const enabled = status.kind !== AppFileStatusKind.Deleted
-    items.push(
-      { type: 'separator' },
-      this.getRevealInFileManagerMenuItem(file),
-      this.getOpenInExternalEditorMenuItem(file, enabled),
-      this.getOpenInExternalDiffToolMenuItem(file, true),
-      {
-        label: OpenWithDefaultProgramLabel,
-        action: () => this.props.onOpenItem(path),
-        enabled: enabled && isSafeExtension,
-      }
-    )
 
     return items
   }
@@ -1242,6 +1263,20 @@ export class FilterChangesList extends React.Component<
       (event.key === 'Enter' || event.key === ' ')
     ) {
       event.preventDefault()
+    }
+
+    // Ctrl+C: copy selected files' relative paths to clipboard
+    if (event.ctrlKey && event.key === 'c') {
+      const { workingDirectory, selectedFileIDs } = this.props
+      const paths = selectedFileIDs
+        .map(id => workingDirectory.findFileWithID(id))
+        .filter((f): f is WorkingDirectoryFileChange => f !== undefined)
+        .map(f => Path.normalize(f.path))
+
+      if (paths.length > 0) {
+        clipboard.writeText(paths.join('\n'))
+        event.preventDefault()
+      }
     }
 
     return

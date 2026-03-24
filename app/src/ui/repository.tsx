@@ -26,6 +26,7 @@ import { FocusContainer } from './lib/focus-container'
 import { ImageDiffType } from '../models/diff'
 import { IMenu } from '../models/app-menu'
 import { StashDiffViewer } from './stashing'
+import { shell } from '../lib/app-shell'
 import { StashedChangesLoadStates } from '../models/stash-entry'
 import { TutorialPanel, TutorialWelcome, TutorialDone } from './tutorial'
 import { TutorialStep, isValidTutorialStep } from '../models/tutorial-step'
@@ -719,6 +720,18 @@ export class RepositoryView extends React.Component<
     // as there's only two tabs.
     if (event.ctrlKey && event.key === 'Tab') {
       this.changeTab()
+      event.preventDefault()
+    }
+
+    // Ctrl+E: open repository root folder in Explorer
+    if (event.ctrlKey && event.key === 'e') {
+      shell.showFolderContents(this.props.repository.path)
+      event.preventDefault()
+    }
+
+    // Ctrl+R: open repository root folder in terminal
+    if (event.ctrlKey && event.key === 'r') {
+      this.props.dispatcher.openShell(this.props.repository.path)
       event.preventDefault()
     }
   }
