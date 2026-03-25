@@ -3,13 +3,14 @@
 import * as cp from 'child_process'
 import * as path from 'path'
 import * as electronInstaller from 'electron-winstaller'
+import { MSICreator } from 'electron-wix-msi'
 import { getProductName, getCompanyName } from '../app/package-info'
 import {
   getDistPath,
   getOSXZipPath,
   getWindowsIdentifierName,
   getWindowsStandaloneName,
-  getWindowsInstallerName,
+  getWindowsWixMsiName,
   shouldMakeDelta,
   getUpdatesURL,
   isPublishable,
@@ -94,7 +95,7 @@ function packageWindows() {
     exe: `${nugetPkgName}.exe`,
     title: productName,
     setupExe: getWindowsStandaloneName(),
-    setupMsi: getWindowsInstallerName(),
+    noMsi: true,
   }
 
   if (shouldMakeDelta()) {
@@ -145,8 +146,50 @@ function packageWindows() {
         await rename(from, to)
       }
     })
+    .then(() => createWixMsi(iconSource))
     .catch(e => {
       console.error(`Error packaging: ${e}`)
       process.exit(1)
     })
+}
+
+async function createWixMsi(iconSource: string) {
+  const nugetPkgName = getWindowsIdentifierName()
+  const arch = getDistArchitecture()
+
+  // WiX MSI only supports x64/x86/ia64
+  const wixArch = arch === 'arm64' ? 'x64' : arch
+
+  // WiX requires a Windows-compliant version (no pre-release tags)
+  const version = getVersion().replace(/-.*$/, '')
+
+  console.log('Creating WiX MSI installer…')
+
+  const msiCreator = new MSICreator({
+    appDirectory: distPath,
+    outputDirectory: outputDir,
+    exe: `${nugetPkgName}.exe`,
+    name: productName,
+    description: productName,
+    manufacturer: getCompanyName(),
+    version,
+    arch: wixArch,
+    icon: iconSource,
+    programFilesFolderName: nugetPkgName,
+    shortcutFolderName: productName,
+    shortcutName: productName,
+    defaultInstallMode: 'perMachine',
+    ui: { chooseDirectory: true },
+  })
+
+  await msiCreator.create()
+  const { msiFile } = await msiCreator.compile()
+
+  // Rename to our naming convention: GitHubDesktopN-x64.msi
+  const targetPath = join(outputDir, getWindowsWixMsiName())
+  if (msiFile !== targetPath) {
+    await rename(msiFile, targetPath)
+  }
+
+  console.log(`WiX MSI created: ${targetPath}`)
 }

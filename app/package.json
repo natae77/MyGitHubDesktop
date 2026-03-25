@@ -1,19 +1,19 @@
 {
-  "name": "desktop",
+  "name": "github-desktop-n",
   "productName": "GitHub Desktop N",
-  "bundleID": "com.github.GitHubClient",
-  "companyName": "GitHub, Inc.",
-  "version": "3.5.7-beta2",
+  "bundleID": "com.natae77.GitHubDesktopN",
+  "companyName": "natae77",
+  "version": "3.5.7-n1",
   "main": "./main.js",
   "repository": {
     "type": "git",
-    "url": "https://github.com/desktop/desktop.git"
+    "url": "https://github.com/natae77/MyGitHubDesktop"
   },
   "description": "Simple collaboration from your desktop",
   "author": {
-    "name": "GitHub, Inc.",
-    "email": "opensource+desktop@github.com",
-    "url": "https://desktop.github.com/"
+    "name": "natae77",
+    "email": "natae77@gmail.com",
+    "url": "https://github.com/natae77"
   },
   "license": "MIT",
   "dependencies": {

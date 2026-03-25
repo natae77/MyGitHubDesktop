@@ -20,3 +20,5 @@ junit*.xml
 *.swp
 tslint-rules/
 .claude/
+yarn.lock
+

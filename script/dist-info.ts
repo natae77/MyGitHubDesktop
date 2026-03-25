@@ -94,6 +94,14 @@ export function getWindowsDeltaNugetPackagePath() {
   )
 }
 
+export function getWindowsWixMsiName() {
+  return `${getWindowsIdentifierName()}-${getDistArchitecture()}.msi`
+}
+
+export function getWindowsWixMsiPath() {
+  return Path.join(getDistRoot(), getWindowsWixMsiName())
+}
+
 export function getWindowsIdentifierName() {
   return 'GitHubDesktopN'
 }
