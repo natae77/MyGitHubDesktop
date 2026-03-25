@@ -774,13 +774,13 @@ export class FilterChangesList extends React.Component<
       )
     }
 
-    // Diff tool, Show in Explorer & Open in Terminal
+    // Diff tool, Show in Explorer & Open Terminal
     items.push(
       { type: 'separator' },
       this.getOpenInExternalDiffToolMenuItem(file, true),
       this.getRevealInFileManagerMenuItem(file),
       {
-        label: __DARWIN__ ? 'Open in Terminal' : 'Open in terminal',
+        label: __DARWIN__ ? 'Open Terminal' : 'Open terminal',
         action: () =>
           this.props.dispatcher.openShell(this.props.repository.path),
       }

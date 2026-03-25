@@ -4,8 +4,11 @@
 Changed files 목록의 컨텍스트 메뉴에서 잘 쓰이지 않는 Ignore 관련 메뉴가 상단에 위치하여 사용성이 떨어짐.
 메뉴 순서를 재배치하고, 레이블을 수정하고, 키보드 단축키를 추가하여 사용성을 개선.
 
+또한 History 탭에서 커밋 선택 시 파일 리스트의 컨텍스트 메뉴도 Changes 탭과 동일한 순서/레이블로 통일.
+
 ## 수정 파일
 - `app/src/ui/changes/filter-changes-list.tsx` — 컨텍스트 메뉴 순서, 레이블, Ctrl+C 단축키
+- `app/src/ui/history/selected-commits.tsx` — History 탭 파일 리스트 컨텍스트 메뉴 순서 재배치, 레이블 수정, Open terminal 추가
 - `app/src/ui/repository.tsx` — Ctrl+E 단축키
 
 ## 변경 내용
@@ -24,7 +27,7 @@ Copy file path
 ─────────────────────
 Diff by WinMerge
 Show in Explorer
-Open in terminal
+Open terminal
 ─────────────────────
 Discard changes...
 Stash changes
@@ -41,13 +44,52 @@ Ignore all .ext files (add to .gitignore)
 
 주요 변경점:
 1. Copy path 메뉴를 맨 위로 이동 (순서: relative path → file path)
-2. Diff tool 바로 아래에 Show in Explorer, Open in terminal 배치
+2. Diff tool 바로 아래에 Show in Explorer, Open terminal 배치
 3. Discard + Stash를 중간으로 이동
 4. Open in editor, Open with default program을 그 다음에 배치
 5. Ignore 관련 메뉴들을 맨 아래로 이동
 6. 다중 선택 시 Include/Exclude selected files는 Ignore 위에 배치
 
-### 3. 키보드 단축키 추가
+### 3. History 탭 커밋 파일 리스트 컨텍스트 메뉴 재배치
+- **파일**: `app/src/ui/history/selected-commits.tsx` — `onContextMenu()`
+
+변경 전 메뉴 순서:
+```
+Reveal in File Manager
+Open in Visual Studio Code
+Open in WinMerge
+Open with default program
+─────────────────────
+Copy file path
+Copy relative file path
+─────────────────────
+View on GitHub
+```
+
+변경 후 메뉴 순서 (Changes 탭과 통일):
+```
+Diff by WinMerge
+Show in Explorer
+Open terminal
+─────────────────────
+Copy relative file path
+Copy file path
+─────────────────────
+Open in Visual Studio Code
+Open with default program
+─────────────────────
+View on GitHub
+```
+
+주요 변경점:
+1. Diff tool을 맨 위로 이동하고 레이블을 `Open in ${label}` → `Diff by ${label}`로 변경
+2. Show in Explorer를 Diff tool 바로 아래로 이동
+3. Open terminal 추가 (현재 History 메뉴에 없음) — `dispatcher.openShell(repository.path)` 사용
+4. Copy path 순서를 relative → full 순서로 변경 (Changes 탭과 동일)
+5. Open in editor, Open with default program을 Copy path 아래로 이동
+6. View on GitHub는 맨 아래 유지
+
+### 4. 키보드 단축키 추가
 
 #### Ctrl+C — 선택된 파일의 relative path를 클립보드에 복사
 - **파일**: `app/src/ui/changes/filter-changes-list.tsx` — `onItemKeyDown()`
@@ -70,6 +112,9 @@ Ignore all .ext files (add to .gitignore)
 ## 검증
 - 앱 빌드 후 Changed files 목록에서 우클릭하여 메뉴 순서 확인
 - 단일 파일 선택 / 다중 파일 선택 두 경우 모두 메뉴 확인
+- History 탭에서 커밋 선택 → 파일 리스트 우클릭하여 메뉴 순서 확인
+- History 탭 메뉴에서 Open terminal 동작 확인
+- History 탭 메뉴에서 Diff by 레이블 확인
 - Ctrl+C로 단일/다중 파일 relative path 복사 확인
 - Ctrl+E로 Explorer 열기 확인
 - Ctrl+R로 터미널 열기 확인

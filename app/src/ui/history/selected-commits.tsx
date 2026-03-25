@@ -418,7 +418,7 @@ export class SelectedCommits extends React.Component<
       : DefaultEditorLabel
 
     const openInExternalDiffTool = externalDiffToolLabel
-      ? `Open in ${externalDiffToolLabel}`
+      ? `Diff by ${externalDiffToolLabel}`
       : DefaultDiffToolLabel
 
     const commit =
@@ -435,16 +435,6 @@ export class SelectedCommits extends React.Component<
 
     const items: IMenuItem[] = [
       {
-        label: RevealInFileManagerLabel,
-        action: () => revealInFileManager(repository, file.path),
-        enabled: fileExistsOnDisk,
-      },
-      {
-        label: openInExternalEditor,
-        action: () => this.props.onOpenInExternalEditor(file.path),
-        enabled: fileExistsOnDisk,
-      },
-      {
         label: openInExternalDiffTool,
         action: () => {
           if (diffToolContext) {
@@ -454,18 +444,34 @@ export class SelectedCommits extends React.Component<
         enabled: diffToolContext !== undefined,
       },
       {
-        label: OpenWithDefaultProgramLabel,
-        action: () => this.onOpenItem(file.path),
-        enabled: isSafeExtension && fileExistsOnDisk,
+        label: RevealInFileManagerLabel,
+        action: () => revealInFileManager(repository, file.path),
+        enabled: fileExistsOnDisk,
+      },
+      {
+        label: __DARWIN__ ? 'Open Terminal' : 'Open terminal',
+        action: () =>
+          this.props.dispatcher.openShell(repository.path),
       },
       { type: 'separator' },
+      {
+        label: CopyRelativeFilePathLabel,
+        action: () => clipboard.writeText(Path.normalize(file.path)),
+      },
       {
         label: CopyFilePathLabel,
         action: () => clipboard.writeText(fullPath),
       },
+      { type: 'separator' },
       {
-        label: CopyRelativeFilePathLabel,
-        action: () => clipboard.writeText(Path.normalize(file.path)),
+        label: openInExternalEditor,
+        action: () => this.props.onOpenInExternalEditor(file.path),
+        enabled: fileExistsOnDisk,
+      },
+      {
+        label: OpenWithDefaultProgramLabel,
+        action: () => this.onOpenItem(file.path),
+        enabled: isSafeExtension && fileExistsOnDisk,
       },
       { type: 'separator' },
     ]
